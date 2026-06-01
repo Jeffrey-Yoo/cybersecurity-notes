@@ -123,6 +123,25 @@ L2 데이터링크    → Ethernet, Wi-Fi
 - `ping [ip]` = L3 ICMP 구간에서 해당 IP가 살아있는지 확인
 - 처음엔 서버가 디폴트로 Listening 상태 유지
 
+### TCP 연결 상태 (Connection States)
+
+```
+LISTEN       → 서버가 연결 대기 중 (기본 상태, 포트 오픈된 상태)
+SYN_SENT     → 클라이언트가 SYN 보내고 응답 기다리는 중
+SYN_RECEIVED → 서버가 SYN 받고 SYN+ACK 보낸 상태
+ESTABLISHED  → 3-way handshake 완료, 실제 통신 중
+FIN_WAIT     → FIN 보내고 종료 대기 중
+CLOSE_WAIT   → 상대방 FIN 받고 내 FIN 준비 중
+TIME_WAIT    → 종료 후 잠시 대기 (지연 패킷 처리용)
+CLOSED       → 연결 완전 종료
+```
+
+- `netstat -an` 명령어로 현재 연결 상태 확인 가능
+- 포트가 열려 있으면 LISTEN 상태 → `telnet [ip] [port]`로 ESTABLISHED 되는지 테스트
+
+> SYN_SENT가 쌓이고 ESTABLISHED가 안 되면? → 방화벽이 막고 있거나 서버가 응답 안 주는 것
+> SYN_SENT만 무한히 보내고 ACK 없이 반복 → **SYN Flood 공격**
+
 ---
 
 ## 4-way Handshake (TCP 종료)
