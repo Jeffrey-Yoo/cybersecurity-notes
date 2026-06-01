@@ -1,17 +1,78 @@
-# Eastboot 보안 프로그래머 교육
+# 📚 이스트캠프 보안프로그래머 과정 — 학습 노트
 
-고용노동부 × 이스트패밀리 합동 보안 프로그래머 교육 과정 학습 노트 저장소입니다.
+> 복습할 때는 분류별로 들어가서 해당 파일만 열면 됨.
 
-## 폴더 구조
+---
+
+## 📁 디렉터리 구조
 
 ```
 Eastboot/
-├── Eastboot_IT/        # IT 인프라 및 보안 개론
+├── 01_OSI-Network/
+│   └── OSI-7Layer.md          # OSI 7계층, TCP/UDP, DNS, VLAN, ACL
+│
+├── 02_Security-Solutions/
+│   └── Security-Solutions.md  # 방화벽, IDS/IPS, UTM, EDR, DLP, DRM, PMS 등
+│
+├── 03_Infrastructure/
+│   └── IT-Infrastructure.md   # 데이터센터, 인터넷 회선, OS, 망분리, 망연계, 백업
+│
+├── 04_Architecture/
+│   └── Architecture.md        # 아키텍처 종류, 설계 6단계, 네트워크 장비 순서
+│
+├── 05_Linux-System/
+│   └── Linux-Commands.md      # 리눅스 명령어, SSH, Samba, DNS, 계정 관리
+│
+├── 06_Attack-Defense/
+│   └── Attack-Defense.md      # 공격 기법 (SQL Injection, XSS 등), 방어 기법
+│
+└── 07_Project-FIMS/
+    └── FIMS-Project.md        # 과정1 FIMS 프로젝트 전체 회고 + 삽질 모음
 ```
 
-## 진행 현황
+---
 
-| 폴더 | 주제 | 상태 |
-|------|------|------|
-| Eastboot_IT | IT 인프라 및 보안 개론 | 🟢 진행 중 |
+## 🔗 주제별 빠른 찾기
 
+| 주제 | 파일 |
+|---|---|
+| OSI 7계층 전체 흐름 | 01_OSI-Network/OSI-7Layer.md |
+| TCP 3-way Handshake | 01_OSI-Network/OSI-7Layer.md |
+| VLAN vs 세그멘테이션 | 01_OSI-Network/OSI-7Layer.md |
+| 방화벽 종류 및 UFW | 02_Security-Solutions/Security-Solutions.md |
+| TP모드 (브릿지 방화벽) | 02_Security-Solutions/Security-Solutions.md |
+| IDS/IPS 차이 | 02_Security-Solutions/Security-Solutions.md |
+| EDR | 02_Security-Solutions/Security-Solutions.md |
+| 망분리 / 망연계 | 03_Infrastructure/IT-Infrastructure.md |
+| 데이터센터 구조 | 03_Infrastructure/IT-Infrastructure.md |
+| 백업 (RTO/RPO) | 03_Infrastructure/IT-Infrastructure.md |
+| 아키텍처 설계 6단계 | 04_Architecture/Architecture.md |
+| 네트워크 장비 순서 (F/W→L3→LB) | 04_Architecture/Architecture.md |
+| 리눅스 기본 명령어 | 05_Linux-System/Linux-Commands.md |
+| SSH / Samba 실습 | 05_Linux-System/Linux-Commands.md |
+| 웹 공격 기법 | 06_Attack-Defense/Attack-Defense.md |
+| 브루트포스 / 크리덴셜 스터핑 | 06_Attack-Defense/Attack-Defense.md |
+| FIMS 전체 아키텍처 | 07_Project-FIMS/FIMS-Project.md |
+| WireGuard / socat 삽질 | 07_Project-FIMS/FIMS-Project.md |
+
+---
+
+## ✅ 면접에서 주의할 표현
+
+```
+틀린 표현: "VLAN으로 망분리 했습니다"
+맞는 표현: "VirtualBox 내부 네트워크로 세그멘테이션 했습니다.
+            실제 VLAN은 물리 스위치가 필요하고 저희는 소프트웨어 레벨 격리였습니다."
+
+틀린 표현: "HA구간에서 동작합니다"
+맞는 표현: HA는 레이어 이름이 아니라 "고가용성(High Availability)" 설계 개념
+```
+
+---
+
+## ❓ 추가 보충 필요한 부분
+
+- ThroughPut 정확한 개념 (수업 중 잘 못 들음)
+- PORT SECURITY 실습 방법
+- VLAN ACL 실제 설정 (2부 UTM 활용편에서 다룰 예정)
+- GNS3 환경 실습
