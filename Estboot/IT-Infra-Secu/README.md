@@ -39,19 +39,28 @@ Eastboot/
 | OSI 7계층 전체 흐름 | 01_OSI-Network/OSI-7Layer.md |
 | TCP 3-way Handshake | 01_OSI-Network/OSI-7Layer.md |
 | VLAN vs 세그멘테이션 | 01_OSI-Network/OSI-7Layer.md |
+| ARP 동작 원리 / 스푸핑 | 01_OSI-Network/OSI-7Layer.md |
+| L4 세션테이블 / Sticky / VIP | 01_OSI-Network/OSI-7Layer.md |
+| 레이어 포함 관계 (L4⊃L3⊃L2) | 01_OSI-Network/OSI-7Layer.md |
 | 방화벽 종류 및 UFW | 02_Security-Solutions/Security-Solutions.md |
 | TP모드 (브릿지 방화벽) | 02_Security-Solutions/Security-Solutions.md |
 | IDS/IPS 차이 | 02_Security-Solutions/Security-Solutions.md |
+| 인라인 모드 / 하드웨어 바이패스 | 02_Security-Solutions/Security-Solutions.md |
+| Anti-APT / WAF / 관제(SIEM) | 02_Security-Solutions/Security-Solutions.md |
 | EDR | 02_Security-Solutions/Security-Solutions.md |
 | 망분리 / 망연계 | 03_Infrastructure/IT-Infrastructure.md |
 | 데이터센터 구조 | 03_Infrastructure/IT-Infrastructure.md |
 | 백업 (RTO/RPO) | 03_Infrastructure/IT-Infrastructure.md |
 | 아키텍처 설계 6단계 | 04_Architecture/Architecture.md |
 | 네트워크 장비 순서 (F/W→L3→LB) | 04_Architecture/Architecture.md |
+| 보안 장비 배치 전체 흐름 (DDoS→…→IDS) | 04_Architecture/Architecture.md |
+| 아키텍처 최적화 원칙 | 04_Architecture/Architecture.md |
 | 리눅스 기본 명령어 | 05_Linux-System/Linux-Commands.md |
 | SSH / Samba 실습 | 05_Linux-System/Linux-Commands.md |
 | 웹 공격 기법 | 06_Attack-Defense/Attack-Defense.md |
 | 브루트포스 / 크리덴셜 스터핑 | 06_Attack-Defense/Attack-Defense.md |
+| RAT / 크랙 악성코드 / 키로깅 | 06_Attack-Defense/Attack-Defense.md |
+| DDoS / 시그니처 우회 | 06_Attack-Defense/Attack-Defense.md |
 | FIMS 전체 아키텍처 | 07_Project-FIMS/FIMS-Project.md |
 | WireGuard / socat 삽질 | 07_Project-FIMS/FIMS-Project.md |
 
