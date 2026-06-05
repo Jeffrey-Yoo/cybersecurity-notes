@@ -43,10 +43,15 @@ Eastboot/
 | L4 세션테이블 / Sticky / VIP | 01_OSI-Network/OSI-7Layer.md |
 | 레이어 포함 관계 (L4⊃L3⊃L2) | 01_OSI-Network/OSI-7Layer.md |
 | 방화벽 종류 및 UFW | 02_Security-Solutions/Security-Solutions.md |
+| 방화벽 세대별 발전 (1·2·3세대 메커니즘) | 02_Security-Solutions/Security-Solutions.md |
+| Stateful Inspection / 세션 추적 | 02_Security-Solutions/Security-Solutions.md |
 | TP모드 (브릿지 방화벽) | 02_Security-Solutions/Security-Solutions.md |
 | IDS/IPS 차이 | 02_Security-Solutions/Security-Solutions.md |
-| 인라인 모드 / 하드웨어 바이패스 | 02_Security-Solutions/Security-Solutions.md |
-| Anti-APT / WAF / 관제(SIEM) | 02_Security-Solutions/Security-Solutions.md |
+| 인라인 모드 / 하드웨어 바이패스 / TAP | 02_Security-Solutions/Security-Solutions.md |
+| 방화벽 룰 처리 순서 (Top-Down) | 02_Security-Solutions/Security-Solutions.md |
+| Anti-APT / 정적·동적 분석(샌드박스 VM) / WAF / 관제(SIEM) | 02_Security-Solutions/Security-Solutions.md |
+| 탐지 패러다임 (시그니처 vs 애노멀리) / Threshold | 02_Security-Solutions/Security-Solutions.md |
+| Darktrace (AI 자가학습 이상탐지 / NDR) | 02_Security-Solutions/Security-Solutions.md |
 | EDR | 02_Security-Solutions/Security-Solutions.md |
 | 망분리 / 망연계 | 03_Infrastructure/IT-Infrastructure.md |
 | 데이터센터 구조 | 03_Infrastructure/IT-Infrastructure.md |
@@ -54,6 +59,9 @@ Eastboot/
 | 아키텍처 설계 6단계 | 04_Architecture/Architecture.md |
 | 네트워크 장비 순서 (F/W→L3→LB) | 04_Architecture/Architecture.md |
 | 보안 장비 배치 전체 흐름 (DDoS→…→IDS) | 04_Architecture/Architecture.md |
+| 고가용성 HA (Active-Standby/Active-Active, 본딩·티밍) | 04_Architecture/Architecture.md |
+| 방화벽 디자인 (구간별 A/B/C/D 코스 정책) | 04_Architecture/Architecture.md |
+| NAT 설계 (DNAT/SNAT, LVS/ALB 논리 배치) | 04_Architecture/Architecture.md |
 | 아키텍처 최적화 원칙 | 04_Architecture/Architecture.md |
 | 리눅스 기본 명령어 | 05_Linux-System/Linux-Commands.md |
 | SSH / Samba 실습 | 05_Linux-System/Linux-Commands.md |
