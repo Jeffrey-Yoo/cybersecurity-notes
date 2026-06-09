@@ -5,13 +5,17 @@
 ## 폴더 구조
 
 ```
-Eastboot/
-├── Eastboot_IT/        # IT 인프라 및 보안 개론
+Estboot/
+├── IT-Infra-Secu/      # IT 인프라 및 보안 개론 (이론 정리)
+├── review/             # 날짜별 복습 (퀴즈 + 면접 + 개념 연결)
+└── Lab/                # 실습 랩 (ESXi·pfSense 가상 인프라, 진행 로그)
 ```
 
 ## 진행 현황
 
 | 폴더 | 주제 | 상태 |
 |------|------|------|
-| Eastboot_IT | IT 인프라 및 보안 개론 | 🟢 진행 중 |
+| IT-Infra-Secu | IT 인프라 및 보안 개론 | 🟢 진행 중 |
+| review | 날짜별 복습 노트 | 🟢 진행 중 |
+| Lab | 실습 랩 구축 (ESXi·pfSense) | 🟢 진행 중 |
 
