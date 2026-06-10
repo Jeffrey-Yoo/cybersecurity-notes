@@ -53,6 +53,7 @@ Eastboot/
 | Anti-APT / 정적·동적 분석(샌드박스 VM) / WAF / 관제(SIEM) | 02_Security-Solutions/Security-Solutions.md |
 | 탐지 패러다임 (시그니처 vs 애노멀리) / Threshold | 02_Security-Solutions/Security-Solutions.md |
 | Darktrace (AI 자가학습 이상탐지 / NDR) | 02_Security-Solutions/Security-Solutions.md |
+| VPN (IPsec vs SSL-VPN / Site-to-Site / 위험 수용·공격표면) | 02_Security-Solutions/Security-Solutions.md |
 | EDR | 02_Security-Solutions/Security-Solutions.md |
 | 망분리 / 망연계 | 03_Infrastructure/IT-Infrastructure.md |
 | 데이터센터 구조 | 03_Infrastructure/IT-Infrastructure.md |
@@ -62,6 +63,7 @@ Eastboot/
 | 네트워크 장비 순서 (F/W→L3→LB) | 04_Architecture/Architecture.md |
 | 보안 장비 배치 전체 흐름 (DDoS→…→IDS) | 04_Architecture/Architecture.md |
 | 메일 서버 구성도 / DLP 복제라인 / 바이패스 이중화 | 04_Architecture/Architecture.md |
+| 방화벽 이중화+탭/IDS "고민의 흔적" (2차 프로젝트 설계철학) | 04_Architecture/Architecture.md |
 | 고가용성 HA (Active-Standby/Active-Active, 본딩·티밍) | 04_Architecture/Architecture.md |
 | 방화벽 디자인 (구간별 A/B/C/D 코스 정책) | 04_Architecture/Architecture.md |
 | NAT 설계 (DNAT/SNAT, LVS/ALB 논리 배치) | 04_Architecture/Architecture.md |
