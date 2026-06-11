@@ -11,12 +11,13 @@
 Lab/
 ├── README.md                  # 이 파일 — 랩 개요 + 현재 환경 상태(살아있는 문서) + 진행 로그 인덱스
 ├── 2026-06-09-환경구축.md      # 6/9 — Workstation Pro·ESXi 설치, 목표 랩 구성, 홈 네트워크 설계
-└── 2026-06-10-pfSense구축.md   # 6/10 — pfSense WAN/LAN 분리, 대역충돌 해결, xubuntu LAN 검증
+├── 2026-06-10-pfSense구축.md   # 6/10 — pfSense WAN/LAN 분리, 대역충돌 해결, xubuntu LAN 검증
+└── 2026-06-11-VLAN구축.md      # 6/11 — VLAN으로 Web/Web_Dev 분리(ESXi VGT 4095 트렁크·pfSense VLAN 라우팅)
 ```
 
 ---
 
-## 🖥️ 현재 환경 상태 (최신: 2026-06-10)
+## 🖥️ 현재 환경 상태 (최신: 2026-06-11)
 
 ### 하드웨어 / 소프트웨어 스택
 
@@ -26,9 +27,10 @@ Lab/
 소프트웨어 (위 → 아래로 쌓임)
  ├ VMware Workstation Pro   ← Broadcom 배포본          [설치 완료]
  ├ ESXi 8.0                 ← Workstation 위 타입1 HV   [설치 완료]
- ├ pfSense                  ← 가상 방화벽(FW)            [설치·구성 완료] WAN/LAN 2장
+ ├ pfSense                  ← 가상 방화벽(FW)            [설치·구성 완료] WAN/LAN + VLAN 10/20 라우팅
  ├ xubuntu (관리 데스크탑)   ← LAN 전용 게스트            [설치 완료] pfSense 관리용
- ├ Ubuntu Server            ← 서버용 게스트              [예정]
+ ├ Web 서버 (Ubuntu Server) ← VLAN 10(운영)             [설치 완료] G/W 10.10.10.1
+ ├ Web_Dev 서버 (Ubuntu)    ← VLAN 20(개발)             [설치 완료] G/W 10.10.20.1
  └ Kubuntu Desktop          ← 데스크탑용 게스트          [예정]
 ```
 
@@ -42,11 +44,15 @@ Lab/
 | ESXi | 192.168.1.200 | 서브컴 위 하이퍼바이저 (관리: Management Network) |
 | NFS | 192.168.1.220 | 본컴 → 서버컴(LAB) 용량 추가용 네트워크 스토리지 |
 | **pfSense WAN(em0)** | **192.168.1.82/24** | 공유기 브릿지로 받은 외부 인터페이스 |
-| **pfSense LAN(em1)** | **192.168.2.1/24** | 내부 관리망 게이트웨이 + DHCP 서버(2.100~200) |
+| **pfSense LAN(em1)** | **192.168.2.1/24** | 내부 관리망 게이트웨이 + DHCP 서버(2.100~200). 포트그룹 VLAN ID **4095(트렁크)** |
 | **xubuntu** | **192.168.2.100** | LAN에 붙은 pfSense 관리 데스크탑(DHCP 수령) |
+| **VLAN 10 G/W** | **10.10.10.1** | pfSense가 든 운영 VLAN 게이트웨이 → Web 서버 |
+| **VLAN 20 G/W** | **10.10.20.1** | pfSense가 든 개발 VLAN 게이트웨이 → Web_Dev 서버 |
 | 다른 무선 장치 | (무선) | 공유기에 무선으로 붙는 단말들 (IDS 음영지역) |
 
 > ⚠️ WAN(192.168.1.x)과 LAN(192.168.2.x)은 **반드시 다른 대역**. 6/10에 pfSense LAN 기본값(192.168.1.1)이 공유기 G/W와 충돌해 192.168.2.1로 바꾼 게 이 분리의 출발점.
+
+> ⚠️ pfSense가 VLAN 10/20을 라우팅하려면 LAN 포트그룹이 **VLAN ID 4095(VGT/트렁크)** 여야 한다 — 태그를 안 지우고 게스트(pfSense)로 다 넘겨야 pfSense가 동별로 분류·라우팅. 6/11 핵심.
 
 ---
 
@@ -56,6 +62,7 @@ Lab/
 |---|---|---|
 | 2026-06-09 | Workstation Pro·ESXi 8.0 설치 / 목표 랩 구성 / 홈 네트워크 설계 | [2026-06-09-환경구축.md](2026-06-09-환경구축.md) |
 | 2026-06-10 | pfSense WAN/LAN 2장 할당 / 대역충돌 해결(LAN 2.1) / DHCP·라우팅 검증(xubuntu) | [2026-06-10-pfSense구축.md](2026-06-10-pfSense구축.md) |
+| 2026-06-11 | VLAN으로 Web/Web_Dev 분리 / ESXi VGT 4095 트렁크 / pfSense VLAN 라우팅(10.10.10·20.1) / 웹서버 초기세팅 | [2026-06-11-VLAN구축.md](2026-06-11-VLAN구축.md) |
 
 ---
 
@@ -63,7 +70,9 @@ Lab/
 
 - [x] ESXi에 pfSense 올리기 — WAN(em0) / LAN(em1) 2장 구성 ✅ 6/10
 - [x] 내부망 기기(xubuntu) 올려 LAN 통신·DHCP 확인 ✅ 6/10
+- [x] LAN 대역에 서버 게스트 올려 세그먼트 분리 — VLAN 10/20 Web·Web_Dev ✅ 6/11
+- [ ] VLAN 10 ↔ VLAN 20 사이 pfSense 방화벽 룰로 통제 (운영↔개발 차단/허용)
 - [ ] pfSense 방화벽 룰로 Architecture "A/B/C/D 코스" 정책 박아보기
-- [ ] LAN 대역(192.168.2.x)에 서버 게스트(Ubuntu Server 등) 더 올려 세그먼트 확인
+- [ ] WAN `any` 허용을 관리 IP로 좁혀 공격 표면 줄이기
 - [ ] NFS(192.168.1.220)로 본컴→서버컴 용량 마운트
 - [ ] 유선 구간에 SPAN/TAP 걸어보고 무선이 왜 안 잡히나(음영지역) 직접 확인
