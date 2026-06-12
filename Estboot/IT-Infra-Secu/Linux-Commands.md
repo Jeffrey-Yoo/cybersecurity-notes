@@ -90,6 +90,28 @@ systemctl restart ssh       # 서비스 재시작
 netstat -an                 # 포트 변경 확인
 ```
 
+### ⚠️ Ubuntu 22.04+ — `ssh.socket`이 sshd_config를 덮어쓴다
+
+최신 우분투는 SSH가 **소켓 액티베이션(`ssh.socket`)**으로 뜬다. 포트를 소켓이 관리하므로 **sshd_config의 Port를 바꿔도 무시된다.**
+
+```bash
+# 방법 A) 소켓 오버라이드
+systemctl edit ssh.socket
+#   [Socket]
+#   ListenStream=          ← 기존값 비우고
+#   ListenStream=원하는포트  ← 새 포트
+systemctl daemon-reload     # ⚠️ demon 아님 — daemon 철자
+systemctl restart ssh.socket
+
+# 방법 B) 소켓을 끄고 전통 방식으로 (이러면 sshd_config의 Port가 먹는다)
+systemctl disable --now ssh.socket
+systemctl enable --now ssh
+
+ss -tlnp | grep ssh         # 실제 리스닝 포트 확인 (누가 그 포트를 잡았나)
+```
+
+> "분명 sshd_config 고쳤는데 포트가 안 바뀐다"의 범인이 `ssh.socket`. 포트가 안 먹으면 `ss -tlnp`부터 본다.
+
 ### vi 편집기 명령어
 
 | 명령어 | 설명 |
@@ -170,39 +192,55 @@ chown www-data:www-data -R /var/www/html/board/
 
 ```bash
 # 서버 측
-sudo apt install samba samba-client
-sudo useradd sambauser
-sudo usermod -aG samba sambauser
-sudo smbpasswd -a sambauser         # 삼바 전용 패스워드 (Linux 패스워드와 별개)
-sudo smbpasswd -e sambauser         # 계정 활성화
+apt install samba samba-client
+groupadd samba
+useradd -M -s /sbin/nologin sambauser   # -M 홈없음, 로그인셸 없음(파일공유 전용 계정)
+usermod -aG samba sambauser
+smbpasswd -a sambauser              # 삼바 전용 패스워드 (Linux 로그인 비번과 별개)
+smbpasswd -e sambauser              # 계정 활성화
 
-sudo mkdir -p /samba
-sudo chown sambauser:samba /samba
-sudo chmod 770 /samba
+mkdir -p /samba
+chown sambauser:samba /samba
+chmod 770 /samba
 
-sudo vi /etc/samba/smb.conf
+vi /etc/samba/smb.conf
 # 맨 아래 추가
 [samba]
    path = /samba
-   browsable = yes
+   browseable = yes                 # ⚠️ browsable 아님 (e 들어감)
    writeable = yes
    guest ok = no
-   valid user = @samba
+   valid users = @samba             # ⚠️ valid user 아님 — 복수형
 
-sudo systemctl restart smbd
-sudo systemctl enable smbd
-
-# 접속 테스트
-smbclient //IP/samba -U sambauser
+testparm                            # ★ 적용 전 문법검사 (Unknown parameter 안 뜨면 OK)
+systemctl restart smbd && systemctl enable smbd
+smbclient //localhost/samba -U sambauser   # 서버 자체 접속 테스트
 ```
+
+> ⚠️ **smb.conf 오타 2종** — `browsable`→`browseable`, `valid user`→`valid users`. 오타가 나도 서비스는 떠서 동작만 이상해진다. **`testparm`으로 거른 뒤 restart** (netplan generate, named-checkconf와 같은 "적용 전 문법검사" 습관).
 
 ```bash
 # 클라이언트 측 (마운트)
-sudo apt install cifs-utils -y
-sudo mkdir -p /mnt/samba
-sudo mount -t cifs //서버IP/samba /mnt/samba -o username=sambauser,password=패스워드
+apt install cifs-utils              # 마운트 전용 (탐색용 samba-client와 다름)
+mkdir -p /mnt/samba
+mount -t cifs //서버IP/samba /mnt/samba -o username=sambauser
+
+# 비번을 명령행에 안 남기게 credentials 파일로 분리
+vi /etc/samba/credentials
+#   username=sambauser
+#   password=비번
+chmod 600 /etc/samba/credentials    # 비번 파일이니 600 필수
+
+# 재부팅에도 살아남게 fstab 자동 마운트
+vi /etc/fstab
+#   //서버IP/samba  /mnt/samba  cifs  credentials=/etc/samba/credentials,uid=1000  0  0
+mount -a                            # ⚠️ 재부팅 전 fstab 검증 필수
 df -h | grep samba                  # 마운트 확인
 ```
+
+> ⚠️ **fstab엔 `-o`를 안 쓴다** — 필드 사이는 공백, 옵션끼리는 콤마. `mount`의 `-o username=...`이 fstab에선 옵션 필드(콤마 구분)로 들어간다.
+
+> 🔗 설정파일 들여쓰기 규칙 비교: netplan(YAML)=들여쓰기가 문법 / smb.conf(INI)=들여쓰기는 가독성용 / fstab=공백으로 필드 구분(칸 수 무관). 파서가 다르니 규칙이 다르다.
 
 > Samba 주요 포트: 445 (SMB Direct), 139 (NetBIOS 구버전 호환)
 
@@ -210,44 +248,64 @@ df -h | grep samba                  # 마운트 확인
 
 ## DNS 서버 구축 (BIND9)
 
+내부 서버끼리 IP 대신 이름으로 부르게 하는 **사내 전화번호부**.
+
 ```bash
-apt update
-apt install bind9 bind9utils
-
-# named.conf 수정
-vi /etc/bind/named.conf
-# 맨 아래에 추가
-include "/etc/bind/named.conf.external-zones";
-
-# 존 파일 생성 및 설정
-vi /etc/bind/maxoverpro.org.zone
+apt install bind9 bind9utils bind9-dnsutils
 ```
 
-존 파일 내용:
+### named.conf.options — 오픈 리졸버를 막는 게 보안 포인트
+
+```
+options {
+    directory "/var/cache/bind";
+    allow-query     { any; };                      # 누구나 질의는 허용
+    allow-recursion { 10.10.0.0/16; localhost; };  # ★ 재귀는 내부망만 (오픈 리졸버 차단)
+    forwarders { 8.8.8.8; 1.1.1.1; };              # 모르는 도메인은 구글/클플로 넘김
+    forward only;
+    dnssec-validation no;
+    listen-on { 10.10.40.10; 127.0.0.1; };
+    listen-on-v6 { none; };
+};
+```
+
+> ⚠️ **`allow-recursion`을 any로 열면 "오픈 리졸버"** — 남 대신 외부까지 찾아주는 서버가 되어 DNS 증폭 DDoS의 발판으로 악용된다. 질의(allow-query)는 열어도 **재귀는 내부망만**. (방화벽 "최소허용·단방향" 원칙의 DNS판)
+
+### 존 선언 + 존 파일
+
+```bash
+vi /etc/bind/named.conf.local
+# zone "lab.internal"   { type master; file "/etc/bind/db.lab.internal";  allow-update { none; }; };
+# zone "maxoverpro.org" { type master; file "/etc/bind/db.maxoverpro.org"; allow-update { none; }; };
+```
+
+존 파일 예 (`/etc/bind/db.maxoverpro.org`):
 ```
 $TTL 86400
 @   IN  SOA  ns.maxoverpro.org. root.maxoverpro.org. (
-    2026051101  ; Serial
+    2026051101  ; Serial  ← 수정 때마다 +1 필수
     3600        ; Refresh
     1800        ; Retry
     604800      ; Expire
     86400 )     ; Negative Cache TTL
 
     @       IN  NS   ns.maxoverpro.org.
-    ns      IN  A    192.168.1.90
-    web01   IN  A    192.168.1.50
-    web02   IN  A    192.168.1.51
+    ns      IN  A    10.10.40.10
+    www     IN  A    10.10.10.10
 ```
 
 ```bash
-# 검증 및 재시작
-named-checkconf
-named-checkzone maxoverpro.org /etc/bind/maxoverpro.org.zone
-systemctl restart bind9
-
-# 테스트
-dig @192.168.1.90 web01.maxoverpro.org
+named-checkconf                                          # 설정 문법
+named-checkzone maxoverpro.org /etc/bind/db.maxoverpro.org   # 존 파일 문법
+rndc reload                                              # ★ 무중단 존 재로드 (restart보다 권장)
+dig @localhost www.maxoverpro.org                        # 자체 테스트
 ```
+
+> ⚠️ **존 파일 두 함정**
+> 1. **Serial은 수정 때마다 +1** — 안 올리면 변경이 반영 안 됨(캐시/슬레이브가 "안 바뀐 줄" 앎).
+> 2. **FQDN 끝의 점(.)** — 점 있으면 완전한 이름, 없으면 뒤에 존 이름이 자동으로 붙는다. `ns.maxoverpro.org`에 점을 빼먹으면 `ns.maxoverpro.org.maxoverpro.org`가 된다.
+
+> 🧠 DNS = 이름→IP 변환(전화번호부)**일 뿐**, 통화허가(방화벽)와 별개. **이름이 풀려도(dig 성공) 방화벽이 막으면 접속 안 됨** — 트러블슈팅 때 둘을 분리해서 본다.
 
 ---
 
