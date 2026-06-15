@@ -51,6 +51,8 @@ Eastboot/
 | 센서 분산·TAP 심화 / 음영지역 / 무선 NAT | 02_Security-Solutions/Security-Solutions.md |
 | 방화벽 룰 처리 순서 (Top-Down) | 02_Security-Solutions/Security-Solutions.md |
 | Anti-APT / 정적·동적 분석(샌드박스 VM) / WAF / 관제(SIEM) | 02_Security-Solutions/Security-Solutions.md |
+| 웹 프록시 (Squid/SquidGuard / 아웃바운드 URL통제 / SSL Bump / SWG) | 02_Security-Solutions/Security-Solutions.md |
+| Snort 룰셋(ET Open) 한계 / IDS≠WAF / threshold | 02_Security-Solutions/Security-Solutions.md |
 | 탐지 패러다임 (시그니처 vs 애노멀리) / Threshold | 02_Security-Solutions/Security-Solutions.md |
 | Darktrace (AI 자가학습 이상탐지 / NDR) | 02_Security-Solutions/Security-Solutions.md |
 | VPN (IPsec vs SSL-VPN / Site-to-Site / 위험 수용·공격표면) | 02_Security-Solutions/Security-Solutions.md |
