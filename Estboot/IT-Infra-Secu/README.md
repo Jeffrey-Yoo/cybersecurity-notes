@@ -48,6 +48,8 @@ Eastboot/
 | TP모드 (브릿지 방화벽) | 02_Security-Solutions/Security-Solutions.md |
 | IDS/IPS 차이 | 02_Security-Solutions/Security-Solutions.md |
 | 인라인 모드 / 하드웨어 바이패스 / TAP | 02_Security-Solutions/Security-Solutions.md |
+| Snort IDS→IPS 전환 (Block Offenders / Legacy vs Inline / 체크섬 오프로딩) | 02_Security-Solutions/Security-Solutions.md |
+| IDS/IPS 룰 튜닝 (Suppress / Pass List / SID 네임스페이스 / 해시·헥스 시그니처) | 02_Security-Solutions/Security-Solutions.md |
 | 센서 분산·TAP 심화 / 음영지역 / 무선 NAT | 02_Security-Solutions/Security-Solutions.md |
 | 방화벽 룰 처리 순서 (Top-Down) | 02_Security-Solutions/Security-Solutions.md |
 | Anti-APT / 정적·동적 분석(샌드박스 VM) / WAF / 관제(SIEM) | 02_Security-Solutions/Security-Solutions.md |
@@ -56,6 +58,7 @@ Eastboot/
 | 탐지 패러다임 (시그니처 vs 애노멀리) / Threshold | 02_Security-Solutions/Security-Solutions.md |
 | Darktrace (AI 자가학습 이상탐지 / NDR) | 02_Security-Solutions/Security-Solutions.md |
 | VPN (IPsec vs SSL-VPN / Site-to-Site / 위험 수용·공격표면) | 02_Security-Solutions/Security-Solutions.md |
+| VPN 심화 (키교환·OTP/MFA·SSL VPN 인증서·입구 SSL Inspection) | 02_Security-Solutions/Security-Solutions.md |
 | EDR | 02_Security-Solutions/Security-Solutions.md |
 | 망분리 / 망연계 | 03_Infrastructure/IT-Infrastructure.md |
 | 데이터센터 구조 | 03_Infrastructure/IT-Infrastructure.md |
