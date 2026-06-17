@@ -14,12 +14,14 @@ Lab/
 ├── 2026-06-10-pfSense구축.md   # 6/10 — pfSense WAN/LAN 분리, 대역충돌 해결, xubuntu LAN 검증
 ├── 2026-06-11-VLAN구축.md      # 6/11 — VLAN으로 Web/Web_Dev 분리(ESXi VGT 4095 트렁크·pfSense VLAN 라우팅)
 ├── 2026-06-12-삼바·DNS·NAT.md  # 6/12 — 삼바 파일서버(VLAN30)·내부DNS(VLAN40)·NAT 포트포워딩·Alias
-└── 2026-06-15-웹프록시·Snort.md # 6/15 — Squid/SquidGuard 아웃바운드 URL 통제 + Snort IDS 탐지실험·SSL Bump 보류
+├── 2026-06-15-웹프록시·Snort.md # 6/15 — Squid/SquidGuard 아웃바운드 URL 통제 + Snort IDS 탐지실험·SSL Bump 보류
+├── 2026-06-16-Snort-IPS전환·Kali·VPN.md # 6/16 — Snort IDS→IPS 인라인 전환·룰 튜닝(Suppress/Pass) + Kali 공격기 투입 + VPN 흐름
+└── 2026-06-17-OpenVPN·SecurityOnion.md  # 6/17 — pfSense OpenVPN 구축 + Security Onion 미러 센서 도입
 ```
 
 ---
 
-## 🖥️ 현재 환경 상태 (최신: 2026-06-15)
+## 🖥️ 현재 환경 상태 (최신: 2026-06-17)
 
 ### 하드웨어 / 소프트웨어 스택
 
@@ -31,7 +33,10 @@ Lab/
  ├ ESXi 8.0                 ← Workstation 위 타입1 HV   [설치 완료]
  ├ pfSense (UTM)            ← 가상 방화벽(FW)            [구성 완료] WAN/LAN + VLAN 10~40 라우팅 + NAT 포워딩 + Alias
  │  ├ Squid + SquidGuard    ← 포워드/캐싱 프록시 + URL필터 [구성] 투명프록시·HTTP 차단 / SSL Bump 보류
- │  └ Snort (IDS)           ← ET Open 룰셋              [구성] WAN·VLAN10 인터페이스별 가동
+ │  ├ Snort (IPS·인라인)    ← ET Open 룰셋              [전환] 6/16 IDS→IPS(Block Offenders·Inline) + Suppress/Pass 튜닝
+ │  └ OpenVPN (원격접속)     ← 내장 패키지               [구성] 6/17 CA·서버인증서·터널 /24·redirect GW·client-export
+ ├ Kali Linux (공격기)      ← 본컴 VirtualBox·WAN쪽       [구성] 6/16 192.168.1.250 static · IPS/IDS 검증용(필요시만 가동)
+ ├ Security Onion (NSM센서) ← 미러 기반 IDS/관제          [도입중] 6/17 SPAN 미러 수신(Suricata+Zeek+Elastic+SOC 3.1) — 실설치 재시도 예정
  ├ xubuntu (관리 데스크탑)   ← LAN 전용 게스트            [설치 완료] pfSense 관리용
  ├ Web 서버 (Ubuntu Server) ← VLAN 10(운영)             [구성] G/W 10.10.10.1 · 아파치+PHP+MariaDB+webhack · 프록시 화이트리스트(ubuntu.com만)
  ├ Web_Dev 서버 (Ubuntu)    ← VLAN 20(개발)             [구성] G/W 10.10.20.1 · 삼바 마운트 · xubuntu-core+firefox(프록시 테스트) · 블랙리스트(games)
@@ -41,6 +46,10 @@ Lab/
 ```
 
 > 🦑 6/15 추가: pfSense에 **Squid/SquidGuard**로 아웃바운드 URL 통제(web=화이트리스트 / webdev=블랙리스트, HTTP만 — HTTPS는 SSL Bump 보류). **Snort(IDS)**를 WAN·VLAN10에 가동해 C2·Nikto·디렉터리 트래버설·커스텀 SQLi 4종 탐지 확인. samba/dns의 안 쓰는 아웃바운드 80/443은 닫음(최소권한).
+
+> 🛡️ 6/16 추가: **Snort를 IDS→IPS(인라인)로 전환** — Block Offenders + Inline 모드(체크섬 오프로딩 OFF 선행), 켜자마자 따라오는 오탐 튜닝(Suppress=알람끄기 / Pass List=차단면제)·커스텀 drop 시그니처(hex/hash). **Kali(공격기 192.168.1.250)**를 WAN쪽에 투입해 검증 준비.
+
+> ☘️ 6/17 추가: pfSense **OpenVPN 서버**(원격접속) 구축 — CA·서버인증서(lifetime 3650)·새 터널 /24·redirect gateway·client-export. **Security Onion(미러 NSM 센서)** 도입 시작 — SPAN 복제 트래픽을 Suricata+Zeek로 보고 SOC 콘솔로 관제(3.1). 정리: **Snort 인라인 = 막는 쪽 / Security Onion = 보는 쪽**.
 
 ### IP 배치 — 외부망(192.168.1.0/24) + 내부 관리망(192.168.2.0/24)
 
@@ -58,6 +67,9 @@ Lab/
 | **VLAN 20 G/W** | **10.10.20.1** | 개발 VLAN 게이트웨이 → Web_Dev 서버(10.10.20.10) |
 | **VLAN 30 G/W** | **10.10.30.1** | 파일공유 VLAN 게이트웨이 → Samba 서버(10.10.30.10) |
 | **VLAN 40 G/W** | **10.10.40.1** | 내부 DNS VLAN 게이트웨이 → BIND9 서버(10.10.40.10) |
+| **Kali (공격기)** | **192.168.1.250 static** | 본컴 VirtualBox·WAN쪽 외부 공격자 포지션 (6/16, 필요시만 가동) |
+| **OpenVPN 터널** | 새 /24 가상대역 | 원격접속 클라이언트가 받는 사설 IP 대역 (6/17, redirect GW) |
+| **Security Onion 센서** | 모니터링 NIC(IP없음) + 관리 NIC | SPAN 미러 수신(promiscuous) / SOC 웹 접속용 관리 NIC 분리 (6/17) |
 | 다른 무선 장치 | (무선) | 공유기에 무선으로 붙는 단말들 (IDS 음영지역) |
 
 > ⚠️ WAN(192.168.1.x)과 LAN(192.168.2.x)은 **반드시 다른 대역**. 6/10에 pfSense LAN 기본값(192.168.1.1)이 공유기 G/W와 충돌해 192.168.2.1로 바꾼 게 이 분리의 출발점.
@@ -77,6 +89,8 @@ Lab/
 | 2026-06-11 | VLAN으로 Web/Web_Dev 분리 / ESXi VGT 4095 트렁크 / pfSense VLAN 라우팅(10.10.10·20.1) / 웹서버 초기세팅 | [2026-06-11-VLAN구축.md](2026-06-11-VLAN구축.md) |
 | 2026-06-12 | 삼바 파일서버(VLAN30)·내부 DNS(VLAN40) 추가 / NAT 포트포워딩(DNAT) / Alias / SSH ssh.socket 포트변경 | [2026-06-12-삼바·DNS·NAT.md](2026-06-12-삼바·DNS·NAT.md) |
 | 2026-06-15 | Squid/SquidGuard 아웃바운드 URL 통제(화이트/블랙리스트) / SSL Bump 보류 / 안 쓰는 아웃바운드 닫기 / Snort IDS 4종 탐지실험 | [2026-06-15-웹프록시·Snort.md](2026-06-15-웹프록시·Snort.md) |
+| 2026-06-16 | Snort IDS→IPS 인라인 전환(Block Offenders·체크섬 OFF) / 오탐 튜닝(Suppress·Pass List·SID·hex/hash) / Kali 공격기 WAN 투입 / VPN 연결 흐름 | [2026-06-16-Snort-IPS전환·Kali·VPN.md](2026-06-16-Snort-IPS전환·Kali·VPN.md) |
+| 2026-06-17 | pfSense OpenVPN 구축(CA·인증서·터널 /24·redirect GW·client-export) / SSL-VPN any·VPN≠포트포워딩·닌자게이트 / Security Onion 미러 센서 도입(3.1) | [2026-06-17-OpenVPN·SecurityOnion.md](2026-06-17-OpenVPN·SecurityOnion.md) |
 
 ---
 
@@ -90,9 +104,17 @@ Lab/
 - [x] 아웃바운드 URL 통제를 프록시로 — Squid/SquidGuard(화이트/블랙리스트, HTTP) ✅ 6/15
 - [x] IDS(Snort) 올려 탐지 실험 — C2·Nikto·디렉터리 트래버설·커스텀 SQLi ✅ 6/15
 - [x] 안 쓰는 아웃바운드 닫기 — samba/dns의 80/443 제거(최소권한) ✅ 6/15
+- [x] **Snort IDS→IPS(인라인) 전환** — Block Offenders + Inline(체크섬 오프로딩 OFF) ✅ 6/16
+- [x] **IPS 오탐 튜닝** — Suppress(알람끄기)·Pass List(차단면제)·커스텀 drop(hex/hash·SID 3000000+) ✅ 6/16
+- [x] **Kali 공격기 투입** — 192.168.1.250 static, WAN쪽 외부 공격자 포지션 ✅ 6/16
+- [x] **VPN 실제 구축** — pfSense OpenVPN(CA·서버인증서·터널 /24·redirect GW·client-export) ✅ 6/17
+- [x] **Security Onion 도입(미러 NSM)** — SPAN 수신·SOC 콘솔 개념까지 ✅ 6/17 (실설치는 재시도 예정)
 - [ ] **SSL Bump 재시도** — 투명 intercept(ERR_DNS_FAIL) 대신 명시적 프록시(PAC/WPAD)로 HTTPS까지 필터링
 - [ ] **WAF(ModSecurity + OWASP CRS)** 올려 IDS가 못 잡는 범용 SQLi/XSS 커버 (IDS≠WAF 실증)
-- [ ] **Snort 룰 튜닝** — 인터페이스별로 그 망에 맞는 룰만 남기고 오탐 대상 정리
+- [ ] **Security Onion 실설치 재시도** — ISO 다시 받기 → so-status·ifconfig RX 확인 → SPAN 물려 미러 검증
+- [ ] **OpenVPN 원격접속 테스트** — client-export로 실접속 + 사용자별 목적지 정책(사설 IP ≠ 프리패스) 검증
+- [ ] **Kali 공격 → 막는 쪽/보는 쪽 동시 검증** — Snort 인라인은 drop, Security Onion Alerts엔 뜨나 대조
+- [ ] **Snort 룰 튜닝(잔여)** — 인터페이스별로 그 망에 맞는 룰만 남기고 오탐 대상 정리
 - [ ] VLAN 10~40 사이 pfSense 방화벽 룰로 단방향 통제 (어떤 망→어떤 망 why로 설계)
 - [ ] 인터넷 아웃바운드를 PMS(내부 레포) 경유로 — 서버 직접 인터넷 차단 (오늘 화이트리스트 ubuntu.com만 연 것의 다음 단계)
 - [ ] pfSense 방화벽 룰로 Architecture "A/B/C/D 코스" 정책 박아보기

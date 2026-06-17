@@ -59,6 +59,8 @@ Eastboot/
 | Darktrace (AI 자가학습 이상탐지 / NDR) | 02_Security-Solutions/Security-Solutions.md |
 | VPN (IPsec vs SSL-VPN / Site-to-Site / 위험 수용·공격표면) | 02_Security-Solutions/Security-Solutions.md |
 | VPN 심화 (키교환·OTP/MFA·SSL VPN 인증서·입구 SSL Inspection) | 02_Security-Solutions/Security-Solutions.md |
+| VPN 운영 (SSL-VPN any 정책 / VPN≠포트포워딩 / 재택 닌자게이트·ISMS) | 02_Security-Solutions/Security-Solutions.md |
+| Security Onion (오픈소스 NSM / SOC 콘솔 Alerts·Hunt·PCAP·Cases / 센서·SPAN / 3.1) | 02_Security-Solutions/Security-Solutions.md |
 | EDR | 02_Security-Solutions/Security-Solutions.md |
 | 망분리 / 망연계 | 03_Infrastructure/IT-Infrastructure.md |
 | 데이터센터 구조 | 03_Infrastructure/IT-Infrastructure.md |
