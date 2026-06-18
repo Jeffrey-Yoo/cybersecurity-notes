@@ -16,12 +16,13 @@ Lab/
 ├── 2026-06-12-삼바·DNS·NAT.md  # 6/12 — 삼바 파일서버(VLAN30)·내부DNS(VLAN40)·NAT 포트포워딩·Alias
 ├── 2026-06-15-웹프록시·Snort.md # 6/15 — Squid/SquidGuard 아웃바운드 URL 통제 + Snort IDS 탐지실험·SSL Bump 보류
 ├── 2026-06-16-Snort-IPS전환·Kali·VPN.md # 6/16 — Snort IDS→IPS 인라인 전환·룰 튜닝(Suppress/Pass) + Kali 공격기 투입 + VPN 흐름
-└── 2026-06-17-OpenVPN·SecurityOnion.md  # 6/17 — pfSense OpenVPN 구축 + Security Onion 미러 센서 도입
+├── 2026-06-17-OpenVPN·SecurityOnion.md  # 6/17 — pfSense OpenVPN 구축 + Security Onion 미러 센서 도입
+└── 2026-06-18-SecurityOnion-룰추가.md   # 6/18 — Security Onion Detections 커스텀 룰 추가·동기화(~15분)·PCAP 확인 (이론: NGIPS 요건·룰 옵션 분석)
 ```
 
 ---
 
-## 🖥️ 현재 환경 상태 (최신: 2026-06-17)
+## 🖥️ 현재 환경 상태 (최신: 2026-06-18)
 
 ### 하드웨어 / 소프트웨어 스택
 
@@ -50,6 +51,8 @@ Lab/
 > 🛡️ 6/16 추가: **Snort를 IDS→IPS(인라인)로 전환** — Block Offenders + Inline 모드(체크섬 오프로딩 OFF 선행), 켜자마자 따라오는 오탐 튜닝(Suppress=알람끄기 / Pass List=차단면제)·커스텀 drop 시그니처(hex/hash). **Kali(공격기 192.168.1.250)**를 WAN쪽에 투입해 검증 준비.
 
 > ☘️ 6/17 추가: pfSense **OpenVPN 서버**(원격접속) 구축 — CA·서버인증서(lifetime 3650)·새 터널 /24·redirect gateway·client-export. **Security Onion(미러 NSM 센서)** 도입 시작 — SPAN 복제 트래픽을 Suricata+Zeek로 보고 SOC 콘솔로 관제(3.1). 정리: **Snort 인라인 = 막는 쪽 / Security Onion = 보는 쪽**.
+
+> 🧅 6/18 추가: Security Onion **SOC 콘솔 Detections에 커스텀 룰 추가 → 톱니바퀴(동기화) → ~15분 뒤 반영**(분산 센서라 배포 지연 큼) → PCAP로 패킷 흐름 확인. 이론은 **NGIPS가 갖춰야 할 요건**(암호화 양방향검사·세션관리·멀티패턴·취약점스캐너/Anti-Botnet 연동·GeoIP·Inline+IDS 듀얼모드)과 **Snort/Suricata 룰 옵션 심화**(offset/depth/distance/within/nocase/http_header/fast_pattern/flow + ET 룰 2건 분석). ⚠️ **우리 랩은 VLAN(논리분리)일 뿐 망분리 아님** — 세그먼트(여러 LAN)≠VLAN≠망분리. ⚠️ **Anti-DDoS와 IPS는 한 라인에 몰면 같이 뻗음** → 역할별 분리(AD=pf / FW=OPN).
 
 ### IP 배치 — 외부망(192.168.1.0/24) + 내부 관리망(192.168.2.0/24)
 
@@ -91,6 +94,7 @@ Lab/
 | 2026-06-15 | Squid/SquidGuard 아웃바운드 URL 통제(화이트/블랙리스트) / SSL Bump 보류 / 안 쓰는 아웃바운드 닫기 / Snort IDS 4종 탐지실험 | [2026-06-15-웹프록시·Snort.md](2026-06-15-웹프록시·Snort.md) |
 | 2026-06-16 | Snort IDS→IPS 인라인 전환(Block Offenders·체크섬 OFF) / 오탐 튜닝(Suppress·Pass List·SID·hex/hash) / Kali 공격기 WAN 투입 / VPN 연결 흐름 | [2026-06-16-Snort-IPS전환·Kali·VPN.md](2026-06-16-Snort-IPS전환·Kali·VPN.md) |
 | 2026-06-17 | pfSense OpenVPN 구축(CA·인증서·터널 /24·redirect GW·client-export) / SSL-VPN any·VPN≠포트포워딩·닌자게이트 / Security Onion 미러 센서 도입(3.1) | [2026-06-17-OpenVPN·SecurityOnion.md](2026-06-17-OpenVPN·SecurityOnion.md) |
+| 2026-06-18 | Security Onion Detections 커스텀 룰 추가·동기화(~15분)·PCAP 확인 / (이론) NGIPS 요건·Snort/Suricata 룰 옵션 분석·VLAN≠망분리·Anti-DDoS와 IPS 분리 | [2026-06-18-SecurityOnion-룰추가.md](2026-06-18-SecurityOnion-룰추가.md) |
 
 ---
 
@@ -109,6 +113,7 @@ Lab/
 - [x] **Kali 공격기 투입** — 192.168.1.250 static, WAN쪽 외부 공격자 포지션 ✅ 6/16
 - [x] **VPN 실제 구축** — pfSense OpenVPN(CA·서버인증서·터널 /24·redirect GW·client-export) ✅ 6/17
 - [x] **Security Onion 도입(미러 NSM)** — SPAN 수신·SOC 콘솔 개념까지 ✅ 6/17 (실설치는 재시도 예정)
+- [x] **Security Onion Detections 콘솔 흐름** — 커스텀 룰 추가 → 톱니바퀴 동기화(~15분) → PCAP 확인 ✅ 6/18
 - [ ] **SSL Bump 재시도** — 투명 intercept(ERR_DNS_FAIL) 대신 명시적 프록시(PAC/WPAD)로 HTTPS까지 필터링
 - [ ] **WAF(ModSecurity + OWASP CRS)** 올려 IDS가 못 잡는 범용 SQLi/XSS 커버 (IDS≠WAF 실증)
 - [ ] **Security Onion 실설치 재시도** — ISO 다시 받기 → so-status·ifconfig RX 확인 → SPAN 물려 미러 검증
