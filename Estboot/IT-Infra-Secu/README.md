@@ -80,7 +80,8 @@ Eastboot/
 | 웹 공격 기법 | 06_Attack-Defense/Attack-Defense.md |
 | 브루트포스 / 크리덴셜 스터핑 | 06_Attack-Defense/Attack-Defense.md |
 | RAT / 크랙 악성코드 / 키로깅 | 06_Attack-Defense/Attack-Defense.md |
-| DDoS / 시그니처 우회 | 06_Attack-Defense/Attack-Defense.md |
+| DDoS 심화 (3대 유형·UDP/Fragment Flooding·자원고갈·응용계층·봇넷·Anycast/BGP·Ingress/Egress 필터링·hping3) | 06_Attack-Defense/Attack-Defense.md |
+| 시그니처 우회 (난독화) | 06_Attack-Defense/Attack-Defense.md |
 | FIMS 전체 아키텍처 | 07_Project-FIMS/FIMS-Project.md |
 | WireGuard / socat 삽질 | 07_Project-FIMS/FIMS-Project.md |
 
