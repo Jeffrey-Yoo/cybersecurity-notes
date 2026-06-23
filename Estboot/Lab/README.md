@@ -17,12 +17,14 @@ Lab/
 ├── 2026-06-15-웹프록시·Snort.md # 6/15 — Squid/SquidGuard 아웃바운드 URL 통제 + Snort IDS 탐지실험·SSL Bump 보류
 ├── 2026-06-16-Snort-IPS전환·Kali·VPN.md # 6/16 — Snort IDS→IPS 인라인 전환·룰 튜닝(Suppress/Pass) + Kali 공격기 투입 + VPN 흐름
 ├── 2026-06-17-OpenVPN·SecurityOnion.md  # 6/17 — pfSense OpenVPN 구축 + Security Onion 미러 센서 도입
-└── 2026-06-18-SecurityOnion-룰추가.md   # 6/18 — Security Onion Detections 커스텀 룰 추가·동기화(~15분)·PCAP 확인 (이론: NGIPS 요건·룰 옵션 분석)
+├── 2026-06-18-SecurityOnion-룰추가.md   # 6/18 — Security Onion Detections 커스텀 룰 추가·동기화(~15분)·PCAP 확인 (이론: NGIPS 요건·룰 옵션 분석)
+├── 2026-06-19-Kali포트스캔·Hydra·패킷분석.md # 6/19 — Kali nmap 포트스캔·Hydra 사전공격(SSH)·IPS 인라인+전체룰에 nmap→알람폭주→ESM 필요성·와이어샤크 IP헤더
+└── 2026-06-22-와이어샤크-전송계층·nmap스캔비교.md # 6/22 — 와이어샤크로 L4 관찰(ping -l로 단편화·TCP 3way/헤더/윈도우·UDP+ICMP unreachable) + nmap -sT vs -sS(스텔스) 대조
 ```
 
 ---
 
-## 🖥️ 현재 환경 상태 (최신: 2026-06-18)
+## 🖥️ 현재 환경 상태 (최신: 2026-06-22)
 
 ### 하드웨어 / 소프트웨어 스택
 
@@ -53,6 +55,10 @@ Lab/
 > ☘️ 6/17 추가: pfSense **OpenVPN 서버**(원격접속) 구축 — CA·서버인증서(lifetime 3650)·새 터널 /24·redirect gateway·client-export. **Security Onion(미러 NSM 센서)** 도입 시작 — SPAN 복제 트래픽을 Suricata+Zeek로 보고 SOC 콘솔로 관제(3.1). 정리: **Snort 인라인 = 막는 쪽 / Security Onion = 보는 쪽**.
 
 > 🧅 6/18 추가: Security Onion **SOC 콘솔 Detections에 커스텀 룰 추가 → 톱니바퀴(동기화) → ~15분 뒤 반영**(분산 센서라 배포 지연 큼) → PCAP로 패킷 흐름 확인. 이론은 **NGIPS가 갖춰야 할 요건**(암호화 양방향검사·세션관리·멀티패턴·취약점스캐너/Anti-Botnet 연동·GeoIP·Inline+IDS 듀얼모드)과 **Snort/Suricata 룰 옵션 심화**(offset/depth/distance/within/nocase/http_header/fast_pattern/flow + ET 룰 2건 분석). ⚠️ **우리 랩은 VLAN(논리분리)일 뿐 망분리 아님** — 세그먼트(여러 LAN)≠VLAN≠망분리. ⚠️ **Anti-DDoS와 IPS는 한 라인에 몰면 같이 뻗음** → 역할별 분리(AD=pf / FW=OPN).
+
+> 🗡️ 6/19 추가: **Kali 공격기 가동** — 웹서버 **nmap 포트스캔**(열린 포트=포워딩으로 연 표면만 잡힘) + **Hydra 사전공격**으로 SSH 무차별 대입(서버 auth 실패 로그 무더기 / 실패 로그 주체는 관리자 아니면 공격자 둘뿐). **IPS 인라인+전체 룰에 nmap** 쏘니 알람 폭주 → **ESM(로그 중앙 수집·상관분석) 필요성** 체감(= Security Onion의 상용 확장판). 오후 **와이어샤크로 IP 헤더** 필드 분해(이론: OSI-7Layer.md).
+
+> 🔬 6/22 추가: 장비 증설 없이 **와이어샤크로 L4(전송계층) 직접 관찰** — `ping -l 3500`으로 단편화 강제해 MF=1/0·Fragment Offset 확인(TCP는 MSS 협상으로 안 보임), **TCP 3-way**(상태전이·시퀀스/ACK 동기화·플래그·윈도우) 캡처, **UDP**(헤더 4칸·닫힌 포트→ICMP Port Unreachable). 오후 **nmap `-sT`(Connect, 3-way 완성·로그 남음) vs `-sS`(SYN/스텔스, RST로 끊어 흔적 제거)** 를 와이어샤크로 대조(열림=SYN+ACK/닫힘=RST/필터=무응답). 이론: OSI-7Layer.md(L4)·Attack-Defense.md(포트 스캔).
 
 ### IP 배치 — 외부망(192.168.1.0/24) + 내부 관리망(192.168.2.0/24)
 
@@ -95,6 +101,8 @@ Lab/
 | 2026-06-16 | Snort IDS→IPS 인라인 전환(Block Offenders·체크섬 OFF) / 오탐 튜닝(Suppress·Pass List·SID·hex/hash) / Kali 공격기 WAN 투입 / VPN 연결 흐름 | [2026-06-16-Snort-IPS전환·Kali·VPN.md](2026-06-16-Snort-IPS전환·Kali·VPN.md) |
 | 2026-06-17 | pfSense OpenVPN 구축(CA·인증서·터널 /24·redirect GW·client-export) / SSL-VPN any·VPN≠포트포워딩·닌자게이트 / Security Onion 미러 센서 도입(3.1) | [2026-06-17-OpenVPN·SecurityOnion.md](2026-06-17-OpenVPN·SecurityOnion.md) |
 | 2026-06-18 | Security Onion Detections 커스텀 룰 추가·동기화(~15분)·PCAP 확인 / (이론) NGIPS 요건·Snort/Suricata 룰 옵션 분석·VLAN≠망분리·Anti-DDoS와 IPS 분리 | [2026-06-18-SecurityOnion-룰추가.md](2026-06-18-SecurityOnion-룰추가.md) |
+| 2026-06-19 | Kali nmap 포트스캔·Hydra 사전공격(SSH 무차별 대입) / IPS 인라인+전체룰에 nmap→알람폭주→ESM 필요성 / 와이어샤크 IP헤더 분해 | [2026-06-19-Kali포트스캔·Hydra·패킷분석.md](2026-06-19-Kali포트스캔·Hydra·패킷분석.md) |
+| 2026-06-22 | 와이어샤크 L4 관찰(ping -l 단편화·TCP 3way/헤더/윈도우·UDP+ICMP unreachable) / nmap -sT vs -sS(스텔스) 대조 | [2026-06-22-와이어샤크-전송계층·nmap스캔비교.md](2026-06-22-와이어샤크-전송계층·nmap스캔비교.md) |
 
 ---
 
@@ -118,7 +126,13 @@ Lab/
 - [ ] **WAF(ModSecurity + OWASP CRS)** 올려 IDS가 못 잡는 범용 SQLi/XSS 커버 (IDS≠WAF 실증)
 - [ ] **Security Onion 실설치 재시도** — ISO 다시 받기 → so-status·ifconfig RX 확인 → SPAN 물려 미러 검증
 - [ ] **OpenVPN 원격접속 테스트** — client-export로 실접속 + 사용자별 목적지 정책(사설 IP ≠ 프리패스) 검증
+- [x] **Kali 실제 공격 발사** — nmap 포트스캔(열린 포워딩 포트만 잡힘) + Hydra 사전공격(SSH 실패 로그 무더기) ✅ 6/19
+- [x] **IPS 인라인+전체룰에 nmap** → 알람 폭주로 ESM(중앙 로그수집·상관분석) 필요성 체감 ✅ 6/19
+- [x] **와이어샤크로 L4 직접 관찰** — ping -l 단편화(MF)·TCP 3way/시퀀스·ACK/윈도우·UDP+ICMP unreachable ✅ 6/22
+- [x] **nmap -sT vs -sS(스텔스) 대조** — 열림(SYN+ACK)/닫힘(RST)/필터(무응답), 스텔스=RST로 흔적 제거 ✅ 6/22
+- [ ] **스텔스 스캔(-sS)을 IPS가 잡나** — Snort 인라인에 쏴서 `flags:S` 임계치/알람 대조 (스캔 캡처 PCAP를 Security Onion에도 올려 보는 쪽 비교)
 - [ ] **Kali 공격 → 막는 쪽/보는 쪽 동시 검증** — Snort 인라인은 drop, Security Onion Alerts엔 뜨나 대조
+- [ ] **Hydra 무차별 대입 차단** — SSH fail2ban / Rate Limit / IPS 임계치로 끊기 (FIMS slowapi의 인프라판)
 - [ ] **Snort 룰 튜닝(잔여)** — 인터페이스별로 그 망에 맞는 룰만 남기고 오탐 대상 정리
 - [ ] VLAN 10~40 사이 pfSense 방화벽 룰로 단방향 통제 (어떤 망→어떤 망 why로 설계)
 - [ ] 인터넷 아웃바운드를 PMS(내부 레포) 경유로 — 서버 직접 인터넷 차단 (오늘 화이트리스트 ubuntu.com만 연 것의 다음 단계)
