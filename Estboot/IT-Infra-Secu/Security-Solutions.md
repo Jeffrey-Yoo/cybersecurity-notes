@@ -599,6 +599,29 @@ ET Pro                               : 유료
 
 > ⚠️ **threshold가 재현을 막는다** — 룰에 `track by_src, count 1, seconds 3600`이면 한 소스에서 1시간에 1번만 alert, `count 5, seconds 60`이면 60초 안에 5번 이상이어야 alert. "한 번 뜨고 다시 안 뜬다 = 룰이 죽은 게 아니라 threshold." 위 애노멀리 "Threshold" 개념이 IDS 룰에 그대로 박혀 있다.
 
+### SYN Flood 임계치 룰 — `flags:S` + `threshold` (6-24일 실습)
+
+hping3로 SYN Flood를 쏘고, Snort 룰로 끊어본 룰의 뼈대:
+
+```
+alert tcp any any -> $HOME_NET any ( \
+    msg:"SYN Flood Detected"; \
+    flags:S; \
+    threshold: type both, track by_src, count 20, seconds 2; \
+    sid:3000010; rev:1; )
+```
+
+| 옵션 | 역할 |
+|---|---|
+| `flags:S` | **SYN 플래그만 세팅된** 패킷 매칭 (S=SYN, A=ACK, R=RST, P=PSH, F=FIN, U=URG). 정상 3-way의 첫 SYN과 SYN Flood의 SYN은 패킷 모양이 같으므로 **개수(threshold)로 구분**한다 |
+| `threshold` | 정상엔 안 걸리고 **과도할 때만** 발동시키는 임계치 |
+| `type both` | `limit`(N번까지만 알림) + `threshold`(N번 넘으면 알림)를 합친 모드 — 임계치를 넘는 순간 발동하되 알림 폭주는 억제 |
+| `track by_src` | **출발지 IP 기준**으로 카운트 (by_dst면 목적지 기준) |
+| `count 20` / `seconds 2` | "**2초에 같은 소스에서 SYN 20개 초과**" = 공격으로 판단 |
+
+> ⚠️ 실IP라도 그 포트가 닫혀있으면 서버가 **RST**를 날려 연결을 정리한다(half-open 회복). 그래서 SYN Flood는 **응답이 안 오는 위조 IP**로 쏴야 효과가 크다. (Attack-Defense.md "SYN Flooding 실증")
+> 🔗 이 `count/seconds` 가 곧 Anti-DDoS의 `SYN Proxy Threshold 500/s` 와 같은 발상의 소형판이다. IPS로 1차 방어, 본격 방어는 앞단 Anti-DDoS(syncookies). (위 "Anti-DDoS가 SYN Flood를 막는 실제 메커니즘")
+
 ---
 
 ## Snort를 IDS → IPS로 전환 (pfSense 인라인 차단) — 6-16일
@@ -1608,6 +1631,43 @@ Connection Flood : Threshold 25      Max simultaneous open connections
 > 세 가지 다 "정상은 이 정도인데, 그 선을 넘으면 공격으로 본다"는 애노멀리 디텍션의 Threshold 개념(아래 참고).
 > 전문 DDoS 장비만큼 정교하진 않지만, IPS에 이 임계치를 걸어두는 것만으로도 1차 방어가 된다.
 
+### Anti-DDoS가 SYN Flood를 막는 실제 메커니즘 (6/24)
+
+위에서 IPS 임계치(SYN Proxy 등)로 "초당 몇 개 넘으면 막는다"를 봤는데, 그럼 **정상 손님과 공격자를 어떻게 구분**하느냐? 핵심은 **"3-way를 서버 대신 Anti-DDoS가 먼저 맺어보는 것"** 이다.
+
+#### ① SYN Cookies — Anti-DDoS가 대리로 3-way를 맺어본다 (교재 그림 3-61)
+
+```
+[정상 사용자일 때]
+사용자 → Anti-DDoS : SYN
+Anti-DDoS → 사용자 : SYN-ACK (seq = cookie)   ← 서버가 아니라 Anti-DDoS가 직접 응답
+사용자 → Anti-DDoS : ACK (seq = cookie+1)      ← 정상이면 cookie+1로 정확히 응답옴
+사용자 → Anti-DDoS : GET                         ← 검증 통과
+  → 그제서야 Anti-DDoS가 서버와 빠르게 3-way를 맺고 데이터를 push해줌
+
+[공격자(위조 IP)일 때]
+공격자 → Anti-DDoS : SYN
+Anti-DDoS → (위조IP) : SYN-ACK (seq=cookie)
+공격자 → Anti-DDoS : (또 SYN)                    ← ACK가 안 옴! 위조 IP라 응답 못 받음
+  → 3-way 미완성 → 서버로 절대 안 넘김 → 서버의 backlog는 깨끗
+```
+
+> 비유: 진짜 예약 손님인지 확인하려고 **안내데스크(Anti-DDoS)가 먼저 전화를 받아 본다.** 손님이 정상이면 "예약번호(cookie+1)"를 정확히 대므로 그제서야 주방(서버)에 주문을 넣는다. 장난전화(위조 IP)는 번호를 못 대니 주방까지 못 간다.
+> 💡 포인트: **서버는 검증 끝난 손님하고만 진짜 3-way를 맺는다.** half-open으로 자원이 마르는 그 backlog 고갈 자체가 Anti-DDoS 앞단에서 흡수된다. (Attack-Defense.md "SYN Flooding 실증")
+
+#### ② First SYN Drop — 첫 SYN을 일부러 버리고 재전송을 본다 (교재 그림 3-62)
+
+```
+원리: TCP는 통신 오류 방지를 위해 응답 없으면 재전송한다(1/2/4/8/16/32초 간격으로 backoff).
+Anti-DDoS가 "첫 번째 SYN을 일부러 drop" → 정상 클라이언트면 잠시 뒤 SYN을 재전송함
+  → 재전송이 오면 = 정상 → 연결 허용
+  → 첫 SYN 뿌리고 재전송 안 오면 = 공격(좀비/위조) → 차단
+```
+
+- ⚠️ **트레이드오프**: 최근 OS·브라우저는 SYN 재전송 타임아웃이 3초쯤으로 길어진 경우가 있어, First SYN Drop을 쓰면 **정상 사용자도 첫 접속이 그만큼 지연**될 수 있다. 그래서 syncookies 쪽을 기본으로 쓰고, First SYN Drop은 사용자 체감 지연을 감안해 적용한다.
+
+> 🔗 두 방식 다 핵심은 같다 — **"미완성 연결을 서버 앞에서 끝까지 검증한다."** Attack-Defense.md의 "미완성 상태로 자원 고갈"을 막는 가장 정밀한 형태가 바로 이 syncookies/First-SYN-Drop이다.
+
 ---
 
 ## 인라인 모드와 하드웨어 바이패스
@@ -1983,6 +2043,43 @@ F/W → Backbone → Mail Server
 - 외부 공격을 유도하는 보안 장치로 수동적으로 공격을 기다리는 서버
 - 공격자의 패턴 및 특성 파악이 핵심
 - 보안 회사뿐 아니라 일반 회사도 아키텍처 상 허니팟 배치해 연구 가능
+
+---
+
+## NMS와 SNMP — 장비 상태를 한곳에서 모니터링 (6/24)
+
+### 왜 모니터링인가 — DDoS 실습이 던진 질문
+
+6/24 SYN Flood/DDoS 실습 중 이런 상황을 가정했다. **"진짜 공격이 들어오면 어디를 먼저 봐야 하나?"** 서비스가 유기적으로 도는지, 어떤 어플라이언스가 죽었는지(혹은 곧 죽을지)를 봐야 한다. 6-23의 **골든타임**(회선/CPU가 맥스 치기 직전)을 잡으려면 **평소부터 대역폭·자원을 보고 있어야** 한다. 그걸 한곳에 모아 보게 해주는 게 NMS다.
+
+```
+SNMP (Simple Network Management Protocol)
+ = 라우터·스위치·서버 등 네트워크 장비의 상태를 원격으로 모니터링/설정하는 표준 프로토콜
+NMS (Network Management System)
+ = 그 SNMP로 수집한 데이터를 한 화면에 모아 그래프·알림으로 보여주는 시스템
+```
+
+> 비유: 병원 중환자실의 **생체신호 모니터**. 환자(서버)마다 심박·혈압(CPU·트래픽)을 계속 띄워두고, 평소 패턴을 벗어나면 경보가 울린다. SNMP = 각 환자에게 붙은 센서, NMS = 간호사 스테이션의 통합 모니터.
+
+- ⚠️ **평균값(baseline)이 핵심.** 평소 올라오던 트래픽/파일 크기엔 평균선이 있는데, 침투·이상 증세가 생기면 그 평균에서 **갑자기 벗어난다.** NMS는 그 이탈을 포착하는 것 — 코어 시스템(코어망·핵심 서버)엔 필수.
+- NMS는 장비에 **인증 로그·액세스 로그**를 함께 요구하기도 한다 — 누가 언제 접근했는지까지 엮어 봐야 이상을 판단할 수 있어서.
+
+> 🔗 **NMS ≠ ESM (헷갈리지 말 것).** NMS는 "장비가 살아있나·자원이 정상인가"(가용성/성능) 모니터링, ESM은 "보안 위협이 있나"(보안 로그 상관분석). 결이 다르지만 둘 다 **"흩어진 걸 한 화면에 모아 평소와 다른 걸 잡는다"** 는 같은 철학. (아래 ESM 섹션)
+
+### Zabbix — 무료 오픈소스 NMS
+
+랩에선 **Zabbix**(무료 오픈소스 NMS)를 올려 모니터링을 실증했다. Zabbix는 공식 사이트에서 **버전·OS를 고르면 그에 맞는 설치 명령어를 그대로 뽑아준다.** 구조는 이렇게 나뉜다.
+
+```
+[Zabbix 서버] 10.10.60.10 (MGT VLAN)     ← 데이터 수집·저장·웹UI를 띄우는 본체
+   ├ zabbix-server : 수집 엔진(에이전트한테 값을 당겨오고 임계치 판단)
+   ├ MariaDB(MySQL): 수집한 시계열 데이터 저장소
+   └ Apache + PHP  : 웹UI(대시보드) 띄우는 웹서버
+        ↑ SNMP/Agent(10050)
+[Zabbix 에이전트] 각 모니터링 대상 서버    ← 자기 CPU·디스크·트래픽을 보고해주는 첩보원
+```
+
+> 🔗 설치 명령어 한 줄 한 줄의 역할(왜 repo를 먼저 추가하고, 왜 DB를 만들고, 왜 스키마를 import하는지)은 **Lab 2026-06-24** 에 명령어별로 풀어 정리했다.
 
 ---
 

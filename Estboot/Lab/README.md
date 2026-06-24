@@ -19,12 +19,13 @@ Lab/
 ├── 2026-06-17-OpenVPN·SecurityOnion.md  # 6/17 — pfSense OpenVPN 구축 + Security Onion 미러 센서 도입
 ├── 2026-06-18-SecurityOnion-룰추가.md   # 6/18 — Security Onion Detections 커스텀 룰 추가·동기화(~15분)·PCAP 확인 (이론: NGIPS 요건·룰 옵션 분석)
 ├── 2026-06-19-Kali포트스캔·Hydra·패킷분석.md # 6/19 — Kali nmap 포트스캔·Hydra 사전공격(SSH)·IPS 인라인+전체룰에 nmap→알람폭주→ESM 필요성·와이어샤크 IP헤더
-└── 2026-06-22-와이어샤크-전송계층·nmap스캔비교.md # 6/22 — 와이어샤크로 L4 관찰(ping -l로 단편화·TCP 3way/헤더/윈도우·UDP+ICMP unreachable) + nmap -sT vs -sS(스텔스) 대조
+├── 2026-06-22-와이어샤크-전송계층·nmap스캔비교.md # 6/22 — 와이어샤크로 L4 관찰(ping -l로 단편화·TCP 3way/헤더/윈도우·UDP+ICMP unreachable) + nmap -sT vs -sS(스텔스) 대조
+└── 2026-06-24-SYN플러딩-Snort차단·Zabbix모니터링.md # 6/24 — SPAN 미러 관찰·SYN Flood(half-open/위조IP) Snort 임계치 차단 + Zabbix(NMS) 구축(명령어별 역할)·web_server 모니터링
 ```
 
 ---
 
-## 🖥️ 현재 환경 상태 (최신: 2026-06-22)
+## 🖥️ 현재 환경 상태 (최신: 2026-06-24)
 
 ### 하드웨어 / 소프트웨어 스택
 
@@ -45,6 +46,7 @@ Lab/
  ├ Web_Dev 서버 (Ubuntu)    ← VLAN 20(개발)             [구성] G/W 10.10.20.1 · 삼바 마운트 · xubuntu-core+firefox(프록시 테스트) · 블랙리스트(games)
  ├ Samba 서버 (Ubuntu)      ← VLAN 30(파일공유)          [설치 완료] G/W 10.10.30.1 · 포트 445 · 아웃바운드 80/443 닫음
  ├ DNS 서버 (BIND9)         ← VLAN 40(내부 이름풀이)      [설치 완료] G/W 10.10.40.1 · 포트 53 · 아웃바운드 80/443 닫음
+ ├ Zabbix (NMS)            ← MGT VLAN 10.10.60.10        [구성] 6/24 Zabbix 7.4(Ubuntu 24.04·MariaDB·Apache) · 포워딩 WAN:1234 · 에이전트 10050 · web_server 모니터링
  └ Kubuntu Desktop          ← 데스크탑용 게스트          [예정]
 ```
 
@@ -57,6 +59,8 @@ Lab/
 > 🧅 6/18 추가: Security Onion **SOC 콘솔 Detections에 커스텀 룰 추가 → 톱니바퀴(동기화) → ~15분 뒤 반영**(분산 센서라 배포 지연 큼) → PCAP로 패킷 흐름 확인. 이론은 **NGIPS가 갖춰야 할 요건**(암호화 양방향검사·세션관리·멀티패턴·취약점스캐너/Anti-Botnet 연동·GeoIP·Inline+IDS 듀얼모드)과 **Snort/Suricata 룰 옵션 심화**(offset/depth/distance/within/nocase/http_header/fast_pattern/flow + ET 룰 2건 분석). ⚠️ **우리 랩은 VLAN(논리분리)일 뿐 망분리 아님** — 세그먼트(여러 LAN)≠VLAN≠망분리. ⚠️ **Anti-DDoS와 IPS는 한 라인에 몰면 같이 뻗음** → 역할별 분리(AD=pf / FW=OPN).
 
 > 🗡️ 6/19 추가: **Kali 공격기 가동** — 웹서버 **nmap 포트스캔**(열린 포트=포워딩으로 연 표면만 잡힘) + **Hydra 사전공격**으로 SSH 무차별 대입(서버 auth 실패 로그 무더기 / 실패 로그 주체는 관리자 아니면 공격자 둘뿐). **IPS 인라인+전체 룰에 nmap** 쏘니 알람 폭주 → **ESM(로그 중앙 수집·상관분석) 필요성** 체감(= Security Onion의 상용 확장판). 오후 **와이어샤크로 IP 헤더** 필드 분해(이론: OSI-7Layer.md).
+
+> 📡 6/24 추가: 칼리를 **SPAN(미러)** 에 물려 오가는 패킷 관찰(포워딩 53/DNS는 도달, ICMP는 미도달 → **프로토콜 맞춰야 응용계층 도달**). **SYN Flooding** 실증(half-open로 backlog 고갈·CPS가 빡세야 먹힘·실존IP 위조는 RST로 오히려 회복) → **Snort 임계치 룰**(`flags:S` + `threshold type both, track by_src, count 20, seconds 2`)로 차단. 오후 **NMS/SNMP** 도입 — 무료 오픈소스 **Zabbix 7.4** 를 명령어별 역할(repo등록→DB생성→스키마import→비번일치→기동)까지 풀어 구축, web_server를 ZBX로 모니터링(baseline=골든타임 감지 토대). 이론: Attack-Defense(SYN Flood)·Security-Solutions(Anti-DDoS syncookies/First SYN Drop·NMS/SNMP·Zabbix).
 
 > 🔬 6/22 추가: 장비 증설 없이 **와이어샤크로 L4(전송계층) 직접 관찰** — `ping -l 3500`으로 단편화 강제해 MF=1/0·Fragment Offset 확인(TCP는 MSS 협상으로 안 보임), **TCP 3-way**(상태전이·시퀀스/ACK 동기화·플래그·윈도우) 캡처, **UDP**(헤더 4칸·닫힌 포트→ICMP Port Unreachable). 오후 **nmap `-sT`(Connect, 3-way 완성·로그 남음) vs `-sS`(SYN/스텔스, RST로 끊어 흔적 제거)** 를 와이어샤크로 대조(열림=SYN+ACK/닫힘=RST/필터=무응답). 이론: OSI-7Layer.md(L4)·Attack-Defense.md(포트 스캔).
 
@@ -130,7 +134,10 @@ Lab/
 - [x] **IPS 인라인+전체룰에 nmap** → 알람 폭주로 ESM(중앙 로그수집·상관분석) 필요성 체감 ✅ 6/19
 - [x] **와이어샤크로 L4 직접 관찰** — ping -l 단편화(MF)·TCP 3way/시퀀스·ACK/윈도우·UDP+ICMP unreachable ✅ 6/22
 - [x] **nmap -sT vs -sS(스텔스) 대조** — 열림(SYN+ACK)/닫힘(RST)/필터(무응답), 스텔스=RST로 흔적 제거 ✅ 6/22
+- [x] **SYN Flooding을 Snort 임계치로 차단** — `flags:S` + `threshold type both, track by_src, count 20, seconds 2`로 끊음 (half-open/위조IP·실존IP RST 회복 실증) ✅ 6/24
+- [x] **NMS(Zabbix) 도입** — SNMP 기반 자원 모니터링으로 baseline 확보(골든타임 감지 토대), web_server ZBX 연결 ✅ 6/24
 - [ ] **스텔스 스캔(-sS)을 IPS가 잡나** — Snort 인라인에 쏴서 `flags:S` 임계치/알람 대조 (스캔 캡처 PCAP를 Security Onion에도 올려 보는 쪽 비교)
+- [ ] **Zabbix 트리거/알림 걸기** — CPU·트래픽 임계치 넘으면 알람(이메일/웹훅) → DDoS 골든타임 자동 감지로 확장
 - [ ] **Kali 공격 → 막는 쪽/보는 쪽 동시 검증** — Snort 인라인은 drop, Security Onion Alerts엔 뜨나 대조
 - [ ] **Hydra 무차별 대입 차단** — SSH fail2ban / Rate Limit / IPS 임계치로 끊기 (FIMS slowapi의 인프라판)
 - [ ] **Snort 룰 튜닝(잔여)** — 인터페이스별로 그 망에 맞는 룰만 남기고 오탐 대상 정리

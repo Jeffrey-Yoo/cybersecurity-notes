@@ -517,6 +517,9 @@ MTU(Maximum Transmission Unit) = 한 번에 보낼 수 있는 최대 크기
  → 조각이 순서 뒤죽박죽 도착할 수 있으니, 다시 합칠 장치가 필요
 ```
 
+> 💡 **인터페이스별 MTU 확인 (Windows, 6/24 번외):** `netsh interface ipv4 show subinterfaces`
+> → 인터페이스마다 MTU 값과 In/Out 바이트가 같이 나온다. VPN 터널은 MTU가 1500이 아니라 1350처럼 작은데(헤더 캡슐화 오버헤드만큼 깎임), 이게 위 Path MTU·단편화가 실제로 갈리는 지점이다. (Linux는 `ip link` / `ifconfig`)
+
 조각을 합치는 3개 장치 = **Identification(같은 묶음 표시) + Fragment Offset(조각 위치) + MF 플래그(More Fragments)**.
 
 ```
