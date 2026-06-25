@@ -43,6 +43,7 @@ cybersecurity-notes/
 
 ## 분류 판단 기준
 - OSI, TCP/IP, DNS, VLAN, 패킷 관련        → OSI-7Layer.md
+- 솔루션 배치 위치·발생 로그·로그 분석법·탐지공백(이건 X가 못 잡음→Y) → Solution-Map.md
 - 방화벽, IDS/IPS, EDR, DLP, NAC 관련      → Security-Solutions.md
 - 데이터센터, 망분리, 백업, 인프라 관련     → IT-Infrastructure.md
 - 아키텍처 설계, LB, 네트워크 장비 배치     → Architecture.md
@@ -70,6 +71,15 @@ cybersecurity-notes/
 - 음차 전사 오류(OrcusRAT, XMRig, Deny 로그 등)는 바로잡아서 넣는다
 
 > 두 결과물의 가장 큰 차이: GitHub = 주제별 분산 통합 / Notion = 원본 시간순 단일 문서.
+
+### 3. Solution-Map.md 능동 갱신 (말 안 해도 자동)
+`Estboot/IT-Infra-Secu/Solution-Map.md` = 내가 쓰는 솔루션·프로그램의 **배치 위치 / 발생 로그 / 로그 분석법 / 탐지공백(이건 X가 못 잡으니 Y)** 통합 지도(살아있는 문서).
+정리할 때 아래에 해당하면 **요청 없이도** 이 파일을 갱신한다:
+- 새 솔루션/프로그램 도입 → 표 1(목적별 분류)·표 2(로그)·"보유 vs 백로그" 추가
+- 배치 위치·방식 변경(인라인↔미러, IDS↔IPS 등) → 배치도·표 1 갱신
+- 새 탐지공백 발견(이 장비가 이걸 못 잡더라) → "탐지 공백 맵"에 한 줄 추가
+- 백로그가 실제 구축됨 → 백로그→보유 이동 + 공백 맵 "해소" 표시
+> Lab README "현재 환경 상태"와 짝 — 둘이 어긋나지 않게 유지. (push는 "깃헙에 올려줘" 때만)
 
 ---
 

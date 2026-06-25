@@ -344,3 +344,67 @@ network:
 ```bash
 netplan apply
 ```
+
+---
+
+## 리눅스 로그 시스템 — journald vs rsyslog (6/25)
+
+6/25 Zabbix로 SSH 실패·snoopy 로그를 수집하려다 "이 로그가 대체 어디에 어떻게 쌓이나"를 정리하게 됐다. Ubuntu 24.04부터 `/var/log/auth.log`를 grep하던 옛 습관이 안 통한다.
+
+```
+전통 방식: syslog 프로토콜 → rsyslog 같은 외부 데몬이 처리 → 텍스트 파일 저장
+현대 방식(24.04 기본): systemd-journald가 처리 → 바이너리 DB 저장 → journalctl로 조회
+```
+
+### systemd-journald — systemd 내장 로그 수집 데몬
+
+systemd는 단일 프로그램이 아니라 데몬 묶음이다 (`-journald` 로그 / `-networkd` 네트워크 / `-resolved` DNS / `-timesyncd` NTP / `-logind` 세션). journald는 그중 **로그 전담**이라 설치 없이 기본 내장.
+
+- 모든 서비스 + 커널 메시지 수집, `/dev/log` 소켓 수신, **바이너리 DB**(`/run/log/journal/`)에 저장.
+- 재부팅 시 `/run/log/journal`은 사라짐(기본값). **`journalctl`로만** 조회 가능.
+
+```bash
+journalctl -f                  # 실시간(tail -f 느낌)
+journalctl -u ssh --no-pager   # 특정 서비스(unit)만
+journalctl --since "1h ago"    # 시간 기준
+journalctl -p err              # 심각도 기준
+journalctl | grep snoopy       # 키워드 검색
+```
+
+> ⚠️ Ubuntu 24.04는 `ls /var/log/ | grep auth` 해도 **auth.log가 없을 수 있다** — journald가 잡고 있어서. `journalctl -u ssh`로 봐야 SSH 실패 로그가 나온다. (저널은 아무나 못 읽음 → 데몬 계정에 권한 주려면 `usermod -aG systemd-journal <user>`)
+
+### rsyslog — journald 로그를 텍스트 파일로 분류 저장하는 독립 데몬
+
+`systemctl status rsyslog`로 확인되는 **서비스(데몬)**다(라이브러리 아님). journald가 `/dev/log`로 공유한 로그를 받아 **facility(출처) 기준으로 분류**해 텍스트로 떨군다.
+
+```
+/var/log/auth.log : auth, authpriv facility (인증/인가)
+/var/log/syslog   : 나머지 전부 (auth/authpriv 제외)
+/var/log/kern.log : 커널 메시지
+```
+
+분류 규칙(`/etc/rsyslog.d/50-default.conf`):
+```
+auth,authpriv.*           /var/log/auth.log    # auth/authpriv만 여기로
+*.*;auth,authpriv.none    /var/log/syslog      # auth/authpriv 빼고 전부 여기로
+```
+> 한 줄: **syslog = 전체 − auth / auth.log = auth·authpriv만.** 그래서 snoopy를 `output=syslog:LOG_AUTHPRIV`로 보내면 auth.log로 떨어진다.
+
+### 둘의 관계 = 협력 (경쟁 아님)
+
+```
+모든 로그 발생 → journald 수신·바이너리 저장 → /dev/log 소켓으로 rsyslog 공유
+            → rsyslog가 facility 분류 → 텍스트 파일(auth.log, syslog…)
+```
+
+| | journald(바이너리) | rsyslog(텍스트) |
+|---|---|---|
+| 조회 | journalctl만 | cat/grep/tail |
+| 검색속도 | 빠름(인덱싱) | 느림(전체 스캔) |
+| 외부전송 | 어려움 | **쉬움** |
+| 변조 | 어려움 | 쉽게 편집 |
+| 용량관리 | 자동 | 수동(logrotate) |
+
+- rsyslog가 없으면 grep/tail 불가 + **Zabbix UserParameter로 읽기 불편 + 외부 SIEM 전송 어려움** → 실무 표준은 **둘 다**(바이너리=빠른 조회 / 텍스트=외부 전송).
+
+> 🔗 **SIEM 연동의 입구가 rsyslog다.** 가장 흔한 방식이 rsyslog forwarding(텍스트를 TCP/UDP로 SIEM 전송). 그 외 systemd-journal-remote, Filebeat/Logstash→Elasticsearch. 즉 서버 로그가 Security Onion/ESM으로 흘러가는 출발점. (Security-Solutions.md "Security Onion / ESM")

@@ -2081,6 +2081,96 @@ NMS (Network Management System)
 
 > 🔗 설치 명령어 한 줄 한 줄의 역할(왜 repo를 먼저 추가하고, 왜 DB를 만들고, 왜 스키마를 import하는지)은 **Lab 2026-06-24** 에 명령어별로 풀어 정리했다.
 
+### Zabbix로 직접 보안 지표 수집 — UserParameter·FIM (6/25)
+
+6/25엔 기본 템플릿(CPU/메모리)을 넘어 **내가 원하는 보안 지표**를 Zabbix가 수집하게 만들었다. 핵심 도구는 **UserParameter** = `/etc/zabbix/zabbix_agentd.conf`에 `UserParameter=키,쉘명령` 으로 박아 **"키 호출 → 쉘명령 실행 → 표준출력 1줄이 값"** 으로 매핑하는 것.
+
+| 지표 | UserParameter (쉘명령) | 잡는 것 |
+|---|---|---|
+| SYN_RECV 수 | `ss -ant | grep -c SYN-RECV` | **SYN Flood**(half-open 적체) — 트리거 `>50` |
+| SYN_SENT 수 | `ss -ant | grep -c SYN-SENT` | **C2 의심**(서버가 밖으로 대량 연결) |
+| SSH 실패 | `journalctl -u ssh | grep -c "Failed password"` | **Hydra 무차별 대입** — 트리거 `>20` |
+| 파일 해시(FIM) | `md5sum /etc/passwd | awk '{print $1}'` | **파일 변조**(백도어/설정 무력화) |
+| 서비스 가용성 | `systemctl is-active apache2` | **다운 감지**(`active` 아니면 발동) |
+
+- **FIM(파일 무결성 모니터링)** = 감시 파일의 해시를 주기적으로 떠서 **직전과 달라지면 변조**로 판정: `last(...,#1)<>last(...,#2)`. 주 대상은 `~/.ssh/authorized_keys`(영구 백도어)·`/etc/passwd`·`/etc/ssh/sshd_config`.
+- ⚠️ **보안 알람 원칙 2가지(여기서 체득):** ① **History를 저장**해야 직전값(#2) 비교가 됨(문자형은 Trends 불가). ② 트리거 **OK event generation: None + Allow manual close** — 변조 후 원복돼도 알람을 자동 해제하지 말고 담당자가 수동으로 닫게 해 **누락 방지**.
+- ⚠️ **권한은 데몬(zabbix 유저) 기준** — `zabbix_agentd -t`(root)는 되는데 `zabbix_get`(zabbix 유저)이 빈값이면 파일 읽기 권한 문제. 해결은 파일 권한을 풀지 말고 `sudoers.d/zabbix`로 **`md5sum`만 한정 sudo**(최소권한).
+
+> ⚠️ **Zabbix FIM의 한계 = 해시 폴링.** 10초 스냅샷이라 수집 사이에 변조→원복하면 놓치고, "누가/언제/무엇을"은 모름(변경 사실만). → **Zabbix FIM = "지금 정상인가(상태)" / auditd·Wazuh = "누가 변조했나(이벤트)"**. 둘이 보완 관계. (구축 전 과정은 Lab 2026-06-25)
+
+---
+
+## 명령어 감사 — snoopy (모든 execve를 가로채 기록) (6/25)
+
+방화벽 차단로그·SYN_SENT는 "뭔가 나갔다"는 알아도 **"쉘에서 무슨 명령을 쳤나"** 는 모른다. 그 공백을 메우는 게 **명령어 감사 도구**.
+
+> **snoopy = `execve()` 시스템콜을 가로채 모든 명령어 실행을 로깅하는 경량 감사 도구.** "이 서버에서 누가·언제·무슨 명령을 쳤나" 전부 기록.
+
+### 원리 — LD_PRELOAD 인터셉트
+
+리눅스 명령 실행은 `bash fork() → 자식이 execve("/bin/ls") → 커널 로드·실행`. snoopy는 그 **execve() 앞에 끼어들어 기록하고 원래 걸 실행**한다(대체가 아니라 wrap → 실행엔 영향 없음).
+
+```
+LD_PRELOAD = 동적 라이브러리를 "가장 먼저" 로드시키는 환경변수
+ → libsnoopy.so가 glibc의 execve()를 덮어써(wrap) 모든 실행을 낚아챔
+시스템 전체 적용 = /etc/ld.so.preload 에 .so 경로 박기 (유저/쉘/SSH 무관 자동 주입)
+```
+- ⚠️ **새 프로세스 생성 시에만 적용** → 이미 떠있는 세션엔 소급 안 됨. 설정 후 **새 SSH 세션**에서 검증.
+- ⚠️ (삽질) `ld.so.preload`에 심볼릭 링크 경로(`/lib/...`)를 넣으면 내부 경로 불일치로 로깅 실패 → **실제 경로(`/usr/lib/...`)** 기재. 로그 목적지는 `/etc/snoopy.ini`의 `output = syslog:LOG_AUTHPRIV`(→ auth.log).
+
+### 로그 한 줄이 알려주는 것
+
+```
+snoopy[1376]: [login:secu ... uid:secu(1000)/root(0) cwd:/root]: rm -rf /data
+```
+누가(`login`)·권한(`uid:실제/유효` — **두 값이 다르면 sudo 사용 = 권한상승**)·어디서(`cwd`)·**무엇을(명령어)**.
+
+### 왜 history로는 부족한가 / auditd와의 분담
+
+| | `~/.bash_history` | snoopy | auditd |
+|---|---|---|---|
+| 삭제 | 사용자가 지움 | **못 지움** | 못 지움(커널) |
+| 시점 | 종료 시에만 | 실시간 | 실시간 |
+| 범위 | bash만 | **모든 execve(쉘 무관·스크립트 내부)** | 파일/네트워크/시스템콜 전부 |
+| 우회 | 쉬움 | LD_PRELOAD 무력화 가능 | 매우 어려움(커널) |
+
+> 정리: **snoopy = 가볍고 빠른 명령어 감사 / auditd = 무겁지만 완전한 감사.** 실무는 둘을 같이.
+> 🔗 Zabbix 연동: `UserParameter=cmd.suspicious,journalctl|grep snoopy|grep -cE "rm -rf|wget|curl|nc |nmap"` → 침투 후 행위를 실시간 탐지. 내부자 위협·APT 사후추적·sudo 남용·컴플라이언스(ISMS/PCI-DSS "모든 명령 기록") 근거가 된다. (Attack-Defense.md RAT/웹셸 사후추적과 한 쌍)
+
+---
+
+## AD (Active Directory) — 계정·권한·정책 중앙관리 플랫폼 (6/25)
+
+지금까지 본 NAC·DLP가 "한 기능"이라면, AD는 윈도우 진영에서 **계정·인증·권한·정책을 통째로 중앙관리**하는 큰 플랫폼이다.
+
+> **AD = "누가 / 어떤 시스템에 / 어떤 권한으로 접근하고 / 어떤 규칙을 따르나"를 중앙에서 관리.** 핵심 3역할: **신원확인(Authentication, Kerberos)** · **권한부여(Authorization)** · **정책강제(Policy, GPO)**.
+
+### 구성 & 도메인
+
+- **AD = 소프트웨어(AD DS 역할) / DC(도메인 컨트롤러) = AD가 깔린 Windows Server.** `Server → AD DS 추가 → 도메인 생성(company.local) → DC가 됨`.
+- ⚠️ **AD 도메인 ≠ DNS 도메인** — 이름만 같고 다른 개념. DNS 도메인=건물 주소(찾아가기) / AD 도메인=회사 이름(소속 구분). 단 AD가 내부 이름해석에 DNS를 **도구로** 씀.
+- **도메인 가입(Domain Join):** 가입 전 서버 10대=계정 10개 → 가입 후 **AD 계정 하나로 전체 접근**. 가입엔 DC 관리자 계정 필요.
+
+### Kerberos 인증 — 비번이 아니라 티켓
+
+```
+PC 로그인 → DC(KDC) 인증요청 → TGT 발급 → (파일서버 접근 시) TGT로 서비스 티켓 요청
+→ DC가 서비스 티켓 발급 → 서버에 제출 → 접근 허용
+```
+- 핵심: **비밀번호는 DC에만 한 번**, 이후엔 티켓으로. (서버마다 비번 안 보냄)
+
+### GPO·OU & 적용 범위
+
+- **GPO(그룹 정책):** DC가 도메인 전체에 정책 배포(USB 금지·설치 제한·비번 복잡도·SW 자동배포). **한 번 수정 → 전체 자동 적용.** **OU**(조직 단위)별로 다른 정책 적용 가능.
+- ⚠️ **내부망 한정** — DC에 도달 가능한 범위에서만. 재택은 **VPN으로 내부망 연결해야** 도메인 로그인. 클라우드판 = **Azure AD(Entra ID)**(별도 제품).
+- **AD vs DLP:** DLP=데이터 유출 방지 전문 / AD=계정·인증·권한·정책 전체 플랫폼. **DLP는 AD의 GPO로 할 수 있는 일의 일부**, AD가 더 큰 개념.
+- **AD가 없으면:** 입퇴사마다 서버 수십 대 돌며 계정 생성/삭제(하나 빠뜨리면 보안구멍). AD면 **계정 하나 비활성화로 모든 접근 즉시 차단**.
+
+> ⚠️ **보안 급소 = DC.** DC 하나 뚫리면 도메인 전체가 넘어간다(Pass-the-Hash 횡이동 / Golden Ticket = krbtgt 해시 탈취로 위조 티켓 → 무제한 접근). → Attack-Defense.md "AD 공격". ❓ 포레스트(여러 도메인을 묶은 최상위)·트러스트는 다음에 더 팔 것.
+
+> 🔗 **윈도우 로그도 같은 사고방식:** 이벤트 뷰어는 **이벤트 ID로 필터**(리눅스 `journalctl -u`·facility 분류의 윈도우판), **로컬 보안 정책 → 감사 정책**으로 "무슨 보안 로그를 남길지" 정의. 결국 리눅스든 윈도우든 **로그 정의 → 분류 → 필터링**이 같다.
+
 ---
 
 ## 보안관제(보안운영)와 ESM — 흩어진 장비를 한곳에서 본다

@@ -36,6 +36,7 @@ Eastboot/
 
 | 주제 | 파일 |
 |---|---|
+| 🗺️ 솔루션 배치·로그·탐지공백 통합 맵 (어디에·어떤 로그·뭘 못 잡나) | Solution-Map.md |
 | OSI 7계층 전체 흐름 | 01_OSI-Network/OSI-7Layer.md |
 | TCP 3-way Handshake | 01_OSI-Network/OSI-7Layer.md |
 | VLAN vs 세그멘테이션 | 01_OSI-Network/OSI-7Layer.md |
@@ -57,6 +58,10 @@ Eastboot/
 | Snort 룰셋(ET Open) 한계 / IDS≠WAF / threshold / SYN Flood 임계치 룰(flags:S) | 02_Security-Solutions/Security-Solutions.md |
 | Anti-DDoS (배치·임계치 / syncookies·First SYN Drop SYN Flood 방어) | 02_Security-Solutions/Security-Solutions.md |
 | NMS·SNMP / Zabbix 모니터링 (baseline·골든타임 / NMS≠ESM) | 02_Security-Solutions/Security-Solutions.md |
+| Zabbix UserParameter·FIM (보안지표 직접수집 / 권한·History·알람 자동해제금지) | 02_Security-Solutions/Security-Solutions.md |
+| snoopy 명령어 감사 (LD_PRELOAD execve 래핑 / vs history / vs auditd) | 02_Security-Solutions/Security-Solutions.md |
+| AD (Active Directory) (Kerberos·GPO·OU·DC / 내부망한정 / AD≠DLP) | 02_Security-Solutions/Security-Solutions.md |
+| 리눅스 로그 시스템 (journald vs rsyslog / facility / SIEM 전송 입구) | 05_Linux-System/Linux-Commands.md |
 | 보안관제·ESM (로그 상관분석 / 솔루션 카탈로그) | 02_Security-Solutions/Security-Solutions.md |
 | 탐지 패러다임 (시그니처 vs 애노멀리) / Threshold | 02_Security-Solutions/Security-Solutions.md |
 | Darktrace (AI 자가학습 이상탐지 / NDR) | 02_Security-Solutions/Security-Solutions.md |
@@ -85,6 +90,7 @@ Eastboot/
 | RAT / 크랙 악성코드 / 키로깅 | 06_Attack-Defense/Attack-Defense.md |
 | DDoS 심화 (3대 유형·UDP/Fragment Flooding·자원고갈·응용계층·봇넷·Anycast/BGP·Ingress/Egress 필터링·hping3) | 06_Attack-Defense/Attack-Defense.md |
 | SYN Flooding 실증 (half-open·CPS·위조IP RST 회복·Snort 임계치·프로토콜 도달) | 06_Attack-Defense/Attack-Defense.md |
+| AD 공격 (Pass-the-Hash·Golden Ticket / DC가 최종 표적) | 06_Attack-Defense/Attack-Defense.md |
 | 시그니처 우회 (난독화) | 06_Attack-Defense/Attack-Defense.md |
 | FIMS 전체 아키텍처 | 07_Project-FIMS/FIMS-Project.md |
 | WireGuard / socat 삽질 | 07_Project-FIMS/FIMS-Project.md |
