@@ -92,6 +92,8 @@ Eastboot/
 | SYN Flooding 실증 (half-open·CPS·위조IP RST 회복·Snort 임계치·프로토콜 도달) | 06_Attack-Defense/Attack-Defense.md |
 | AD 공격 (Pass-the-Hash·Golden Ticket / DC가 최종 표적) | 06_Attack-Defense/Attack-Defense.md |
 | 시그니처 우회 (난독화) | 06_Attack-Defense/Attack-Defense.md |
+| C2 심화 (다단계 드로퍼/다운로더/비콘·클라우드 C2 APT29·측면이동·반출·DNS터널 방어·MITRE ATT&CK) | 06_Attack-Defense/Attack-Defense.md |
+| 🧭 과정2 프로젝트 종합 방향성 (멀티사이트·R&D 망 설계·솔루션 배치 정당화) | Project2-Direction.md |
 | FIMS 전체 아키텍처 | 07_Project-FIMS/FIMS-Project.md |
 | WireGuard / socat 삽질 | 07_Project-FIMS/FIMS-Project.md |
 
